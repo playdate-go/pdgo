@@ -1,0 +1,9 @@
+.idea
+
+examples/go_logo/*.pdx
+examples/bouncing_square/*.pdx
+
+*.sum
+*.h
+
+cmd/pdgoc
