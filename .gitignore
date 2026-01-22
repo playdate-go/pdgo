@@ -6,4 +6,6 @@ examples/bouncing_square/*.pdx
 *.sum
 *.h
 
+.DS_Store
+
 cmd/pdgoc
