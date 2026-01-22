@@ -4,6 +4,7 @@
 ## Menu
 
 - [Overview](#overview)
+- [Community](#community)
 - [CLI Tool Usage](#cli-tool-usage)
 - [Internals](#internals)
     - [Device](#device)
@@ -33,6 +34,26 @@ Hi, my name is Roman Bielyi, and I'm developing this project in my spare time as
 This project is an independent effort and is neither endorsed by nor affiliated with [Panic Inc](https://panic.com/).
 
 As a Go developer, I immediately wanted to bring Go to the [Playdate](https://play.date/). It wasn’t straightforward, but I got it working -- hope you’ll enjoy experimenting with it.
+
+## Community
+Using these links and places, you can discuss the PdGo project with each other:
+
+Slack
+1) https://gophers.slack.com/archives/C029RQSEE/p1769119174451979
+2) https://gophers.slack.com/archives/CDJD3SUP6/p1769119574841489
+
+Reddit:
+1) https://www.reddit.com/r/golang/comments/1qk1ec9/golang_support_for_playdate_handheld_compiler_sdk/
+2) https://www.reddit.com/r/PlaydateDeveloper/comments/1qk0r60/golang_support_for_playdate_handheld_compiler_sdk/
+3) https://www.reddit.com/r/programming/comments/1qk19kb/playdate_supports_go_language_compiler_sdk/
+4) https://www.reddit.com/r/PlaydateConsole/comments/1qk0wy0/golang_support_for_playdate_handheld_compiler_sdk/
+
+**Discord**:
+1) https://discord.com/channels/118456055842734083/1464001888243548181
+2) https://discord.com/channels/675983554655551509/1464004567476867247  
+
+**Playdate Development Forum (this is the main place to discuss)**:
+https://devforum.play.date/t/golang-support-for-playdate-compiler-sdk-bindings-tools-and-examples/24919
 
 ## CLI Tool Usage
 
