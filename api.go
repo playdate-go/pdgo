@@ -5,7 +5,7 @@
 package pdgo
 
 /*
-#cgo CFLAGS: -I${SRCDIR}
+#cgo CFLAGS: -DTARGET_EXTENSION=1
 #include "pd_api.h"
 #include <stdlib.h>
 #include <string.h>

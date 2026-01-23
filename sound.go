@@ -3,6 +3,7 @@
 package pdgo
 
 /*
+#cgo CFLAGS: -DTARGET_EXTENSION=1
 #include "pd_api.h"
 #include <stdlib.h>
 
