@@ -484,7 +484,20 @@ Please see [API Bindings](API_bindings.md)
 
 Each example includes a `build.sh` script that runs `pdgoc` with all necessary flags.
 
-**Bouncing Square** — [examples/bouncing_square](examples/bouncing_square)
+**Conway's Game of Life** -- [examples/life](examples/bouncing_square)
+
+Is a cellular automaton developed by the British mathematician John Horton Conway.
+This is a Conway's Game of Life simulation example. 
+
+```bash
+cd examples/life
+./build.sh
+```
+
+<img src="assets/examples/ex_life.gif" alt="Life" width="300">
+
+
+**Bouncing Square** -- [examples/bouncing_square](examples/bouncing_square)
 
 A simple application displays a black filled square that bounces continuously off all four edges of the screen.
 
@@ -497,7 +510,7 @@ cd examples/bouncing_square
 
 ---
 
-**Go Logo** — [examples/go_logo](examples/go_logo)
+**Go Logo** -- [examples/go_logo](examples/go_logo)
 
 A simple application that displays the Go programming language's mascot, the Gopher.
 
@@ -510,7 +523,7 @@ cd examples/go_logo
 
 ---
 
-**Hello World** — [examples/hello_world](examples/hello_world)
+**Hello World** -- [examples/hello_world](examples/hello_world)
 
 Classic "Hello World!" text bouncing around the screen with FPS counter, this example was directly rewritten from C to Go from official Playdate SDK examples.
 

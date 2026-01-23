@@ -3,6 +3,7 @@
 examples/go_logo/*.pdx
 examples/bouncing_square/*.pdx
 examples/hello_world/*.pdx
+examples/life/*.pdx
 
 *.sum
 

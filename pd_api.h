@@ -59,4 +59,4 @@ __declspec(dllexport)
 #endif
 int eventHandler(PlaydateAPI* playdate, PDSystemEvent event, uint32_t arg);
 
-#endif 
+#endif
