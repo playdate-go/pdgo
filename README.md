@@ -57,16 +57,25 @@ https://devforum.play.date/t/golang-support-for-playdate-compiler-sdk-bindings-t
 
 ## CLI Tool Usage
 
-`pdgoc` (PdGo build tool)  is a command-line tool that simplifies building Go apps for the Playdate console.
+`pdgoc` (PdGo build tool) is a command-line tool that handles **everything** for building Go apps for Playdate, both Simulator and Device builds.
+
+> [!IMPORTANT]
+> **Always use `pdgoc` for building.** Do not try to run `go build` or `tinygo build` directly because `pdgoc` handles all the complexity: SDK paths, CGO flags, temporary files, and cross-compilation.
 
 | Flag     | Description                                       |
 |----------|---------------------------------------------------|
 | `sim`    | Builds project for the Playdate Simulator only    |
 | `device` | Builds project for the Playdate console only      | 
-| `run`    | Builds and run project for the Playdate Simulator | 
+| `run`    | Builds and runs project in the Playdate Simulator | 
 
->[!NOTE]
-> The `sim` and `device` flags can be combined to build and deploy to both the Playdate Simulator and physical device simultaneously.
+> [!NOTE]
+> The `sim` and `device` flags can be combined to build for both Simulator and Device simultaneously.
+
+### What pdgoc Does Automatically
+
+- **Simulator builds**: Sets up CGO environment, SDK paths, builds `.dylib`/`.so`, packages into `.pdx`
+- **Device builds**: Creates C bridge, compiles with custom TinyGo, links ARM binary, packages into `.pdx`
+- **Cleanup**: Removes all temporary files after build
 
 | Flag                | Description                                     |
 |---------------------|-------------------------------------------------|
@@ -470,29 +479,48 @@ Please see [API Bindings](API_bindings.md)
 
 ## Examples
 
->[!NOTE]
+> [!NOTE]
 > We will add more complex examples as the project progresses
-- Bouncing Square:
-  A simple application displays a black filled square that bounces continuously off all four edges of the screen.
-  [examples/bouncing_square](examples/bouncing_square)
-- 
-  ```bash
-  cd examples/bouncing_square
-  bash ./build.sh
-  ````
 
-<img src="assets/examples/ex_bouncing_square.gif" alt="Example 2" width="300">
+Each example includes a `build.sh` script that runs `pdgoc` with all necessary flags.
 
-- GoLogo:  
-  A simple application that displays the Go programming language's mascot, the Gopher.
-  [examples/go_logo](examples/go_logo)
+**Bouncing Square** — [examples/bouncing_square](examples/bouncing_square)
 
-  ```bash
-  cd examples/go_logo
-  bash ./build.sh
-  ````
+A simple application displays a black filled square that bounces continuously off all four edges of the screen.
 
-<img src="assets/examples/ex_go_logo.png" alt="Example 2" width="300"  >
+```bash
+cd examples/bouncing_square
+./build.sh
+```
+
+<img src="assets/examples/ex_bouncing_square.gif" alt="Bouncing Square" width="300">
+
+---
+
+**Go Logo** — [examples/go_logo](examples/go_logo)
+
+A simple application that displays the Go programming language's mascot, the Gopher.
+
+```bash
+cd examples/go_logo
+./build.sh
+```
+
+<img src="assets/examples/ex_go_logo.png" alt="Go Logo" width="300">
+
+---
+
+**Hello World** — [examples/hello_world](examples/hello_world)
+
+Classic "Hello World!" text bouncing around the screen with FPS counter, this example was directly rewritten from C to Go from official Playdate SDK examples.
+
+```bash
+cd examples/hello_world
+./build.sh
+```
+
+<img src="assets/examples/ex_hello_world.gif" alt="Go Logo" width="300">
+
 
 
 ## Roadmap
