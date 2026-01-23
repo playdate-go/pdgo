@@ -2,9 +2,12 @@
 
 examples/go_logo/*.pdx
 examples/bouncing_square/*.pdx
+examples/hello_world/*.pdx
 
 *.sum
-*.h
+
+pdex.h
+!pd_api.h
 
 .DS_Store
 
