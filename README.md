@@ -540,6 +540,33 @@ cd examples/hello_world
 
 - [ ] Add more own complex code examples to cover and test all API subsystems
 - [ ] Rewrite to Go all official examples from SDK
+    - [x] Hello World
+    - [x] Life
+    - [ ] Tilemap
+    - [ ] Sprite Game
+    - [ ] Sprite Collisions
+    - [ ] Particles
+    - [ ] Networking
+    - [ ] JSON
+    - [ ] Exposure
+    - [ ] Bach.mid
+    - [ ] Array
+    - [ ] 3D Library
+    - [ ] 2020
+    - [ ] Accelerometer Test
+    - [ ] Asteroids
+    - [ ] ControllerTest
+    - [ ] Drum Machine
+    - [ ] Flippy Fish
+    - [ ] Game Template
+    - [ ] Hammer Down
+    - [ ] Level 1-1
+    - [ ] MIDI Player
+    - [ ] Node7Driver
+    - [ ] Networking
+    - [ ] Pathfinder
+    - [ ] Single File Examples
+    - [ ] Sprite Collisions Masks
 - [ ] Make sure Lua interoperability works
 - [ ] Make sure C interoperability works
 - [X] Write documentation for API bindings
