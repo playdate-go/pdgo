@@ -484,7 +484,7 @@ Please see [API Bindings](API_bindings.md)
 
 Each example includes a `build.sh` script that runs `pdgoc` with all necessary flags.
 
-**Conway's Game of Life** -- [examples/life](examples/bouncing_square)
+**Conway's Game of Life** -- [examples/life](examples/life)
 
 Is a cellular automaton developed by the British mathematician John Horton Conway.
 This is a Conway's Game of Life simulation example. 
