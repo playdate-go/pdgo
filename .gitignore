@@ -7,7 +7,6 @@ examples/hello_world/*.pdx
 *.sum
 
 pdex.h
-!pd_api.h
 
 .DS_Store
 
