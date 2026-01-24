@@ -328,6 +328,34 @@ func spriteQuerySpritesAlongLine(x1, y1, x2, y2 float32, count *int32) uintptr
 //go:linkname spriteAllOverlappingSprites pd_sprite_allOverlappingSprites
 func spriteAllOverlappingSprites(count *int32) uintptr
 
+//go:linkname spriteDrawSprites pd_sprite_drawSprites
+func spriteDrawSprites()
+
+//go:linkname spriteMarkDirty pd_sprite_markDirty
+func spriteMarkDirty(sprite uintptr)
+
+//go:linkname spriteSetUpdateFunction pd_sprite_setUpdateFunction
+func spriteSetUpdateFunction(sprite uintptr, hasCallback int32)
+
+//go:linkname spriteSetDrawFunction pd_sprite_setDrawFunction
+func spriteSetDrawFunction(sprite uintptr, hasCallback int32)
+
+//go:linkname spriteSetCollisionResponseFunction pd_sprite_setCollisionResponseFunction
+func spriteSetCollisionResponseFunction(sprite uintptr, hasCallback int32)
+
+// Wrapper functions to convert uintptr to int32 for C calls
+func spriteSetUpdateFunctionWrapper(sprite, hasCallback uintptr) {
+	spriteSetUpdateFunction(sprite, int32(hasCallback))
+}
+
+func spriteSetDrawFunctionWrapper(sprite, hasCallback uintptr) {
+	spriteSetDrawFunction(sprite, int32(hasCallback))
+}
+
+func spriteSetCollisionResponseFunctionWrapper(sprite, hasCallback uintptr) {
+	spriteSetCollisionResponseFunction(sprite, int32(hasCallback))
+}
+
 // ============== File Functions ==============
 
 //go:linkname fileOpen pd_file_open
@@ -558,6 +586,11 @@ func init() {
 		SpriteQuerySpritesInRect:    spriteQuerySpritesInRect,
 		SpriteQuerySpritesAlongLine: spriteQuerySpritesAlongLine,
 		SpriteAllOverlappingSprites: spriteAllOverlappingSprites,
+		SpriteDrawSprites:                  spriteDrawSprites,
+		SpriteMarkDirty:                    spriteMarkDirty,
+		SpriteSetUpdateFunction:            spriteSetUpdateFunctionWrapper,
+		SpriteSetDrawFunction:              spriteSetDrawFunctionWrapper,
+		SpriteSetCollisionResponseFunction: spriteSetCollisionResponseFunctionWrapper,
 
 		// File
 		FileOpen:   fileOpen,

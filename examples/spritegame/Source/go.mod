@@ -1,0 +1,7 @@
+module spritegame
+
+go 1.21
+
+require github.com/playdate-go/pdgo v0.1.1
+
+// replace github.com/playdate-go/pdgo => ../../../

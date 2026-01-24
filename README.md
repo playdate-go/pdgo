@@ -484,6 +484,15 @@ Please see [API Bindings](API_bindings.md)
 
 Each example includes a `build.sh` script that runs `pdgoc` with all necessary flags.
 
+**Sprite Game** -- [examples/spritegame](examples/spritegame)
+
+```bash
+cd examples/spritegame
+./build.sh
+```
+
+<img src="assets/examples/ex_spritegame.gif" alt="Life" width="300">
+
 **Conway's Game of Life** -- [examples/life](examples/life)
 
 Is a cellular automaton developed by the British mathematician John Horton Conway.

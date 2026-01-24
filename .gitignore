@@ -4,6 +4,9 @@ examples/go_logo/*.pdx
 examples/bouncing_square/*.pdx
 examples/hello_world/*.pdx
 examples/life/*.pdx
+examples/spritegame/*.pdx
+
+examples/spritegame/Source/images
 
 *.sum
 

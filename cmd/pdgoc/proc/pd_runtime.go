@@ -463,7 +463,62 @@ void* pd_sprite_querySpritesAtPoint(float x, float y, int* len) { return pd ? pd
 void* pd_sprite_querySpritesInRect(float x, float y, float w, float h, int* len) { return pd ? pd->sprite->querySpritesInRect(x, y, w, h, len) : 0; }
 void* pd_sprite_querySpritesAlongLine(float x1, float y1, float x2, float y2, int* len) { return pd ? pd->sprite->querySpritesAlongLine(x1, y1, x2, y2, len) : 0; }
 void* pd_sprite_allOverlappingSprites(int* len) { return pd ? pd->sprite->allOverlappingSprites(len) : 0; }
+void pd_sprite_drawSprites(void) { if (pd) pd->sprite->drawSprites(); }
+void pd_sprite_markDirty(struct LCDSprite* s) { if (pd) pd->sprite->markDirty(s); }
 
+// ============== Sprite Callback Trampolines ==============
+// Go trampoline functions (exported from TinyGo)
+extern void pdgo_sprite_update_trampoline(uintptr_t spritePtr) __asm__("pdgo_sprite_update_trampoline");
+extern void pdgo_sprite_draw_trampoline(uintptr_t spritePtr, float bx, float by, float bw, float bh, float dx, float dy, float dw, float dh) __asm__("pdgo_sprite_draw_trampoline");
+extern int32_t pdgo_sprite_collision_trampoline(uintptr_t spritePtr, uintptr_t otherPtr) __asm__("pdgo_sprite_collision_trampoline");
+
+// C callback wrappers that call Go trampolines
+static void sprite_update_callback_wrapper(struct LCDSprite* sprite) {
+    pdgo_sprite_update_trampoline((uintptr_t)sprite);
+}
+
+typedef struct { float x; float y; float width; float height; } PDRectLocal;
+
+static void sprite_draw_callback_wrapper(struct LCDSprite* sprite, PDRectLocal bounds, PDRectLocal drawrect) {
+    pdgo_sprite_draw_trampoline((uintptr_t)sprite, bounds.x, bounds.y, bounds.width, bounds.height, drawrect.x, drawrect.y, drawrect.width, drawrect.height);
+}
+
+typedef int SpriteCollisionResponseTypeLocal;
+
+static SpriteCollisionResponseTypeLocal sprite_collision_callback_wrapper(struct LCDSprite* sprite, struct LCDSprite* other) {
+    return (SpriteCollisionResponseTypeLocal)pdgo_sprite_collision_trampoline((uintptr_t)sprite, (uintptr_t)other);
+}
+
+// Functions to register callbacks with sprites
+void pd_sprite_setUpdateFunction(struct LCDSprite* s, int hasCallback) {
+    if (pd && s) {
+        if (hasCallback) {
+            pd->sprite->setUpdateFunction(s, sprite_update_callback_wrapper);
+        } else {
+            pd->sprite->setUpdateFunction(s, 0);
+        }
+    }
+}
+
+void pd_sprite_setDrawFunction(struct LCDSprite* s, int hasCallback) {
+    if (pd && s) {
+        if (hasCallback) {
+            pd->sprite->setDrawFunction(s, (void*)sprite_draw_callback_wrapper);
+        } else {
+            pd->sprite->setDrawFunction(s, 0);
+        }
+    }
+}
+
+void pd_sprite_setCollisionResponseFunction(struct LCDSprite* s, int hasCallback) {
+    if (pd && s) {
+        if (hasCallback) {
+            pd->sprite->setCollisionResponseFunction(s, (void*)sprite_collision_callback_wrapper);
+        } else {
+            pd->sprite->setCollisionResponseFunction(s, 0);
+        }
+    }
+}
 // ============== Sound API Wrappers ==============
 struct FilePlayer* pd_sound_newFilePlayer(void) { return pd && pd->sound && pd->sound->fileplayer ? pd->sound->fileplayer->newPlayer() : 0; }
 void pd_sound_freeFilePlayer(struct FilePlayer* p) { if (pd && pd->sound && pd->sound->fileplayer) pd->sound->fileplayer->freePlayer(p); }
@@ -501,6 +556,7 @@ extern int eventHandler(PlaydateAPI* playdate, PDSystemEvent event, uint32_t arg
 int eventHandlerShim(PlaydateAPI* playdate, PDSystemEvent event, uint32_t arg) {
     if (event == kEventInit) {
         pd = playdate;
+        // TinyGo runtime initializes automatically on first Go function call
         int result = eventHandler(playdate, event, arg);
         pd->system->setUpdateCallback(updateCallback, 0);
         return result;

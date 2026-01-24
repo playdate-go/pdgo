@@ -104,43 +104,48 @@ var (
 // ============== Sprite Bridge ==============
 
 var (
-	bridgeSpriteNewSprite             func() uintptr
-	bridgeSpriteFreeSprite            func(uintptr)
-	bridgeSpriteAddSprite             func(uintptr)
-	bridgeSpriteRemoveSprite          func(uintptr)
-	bridgeSpriteRemoveAllSprites      func()
-	bridgeSpriteGetSpriteCount        func() int32
-	bridgeSpriteSetImage              func(uintptr, uintptr, int32)
-	bridgeSpriteGetImage              func(uintptr) uintptr
-	bridgeSpriteSetBounds             func(uintptr, float32, float32, float32, float32)
-	bridgeSpriteGetBounds             func(uintptr, *float32, *float32, *float32, *float32)
-	bridgeSpriteMoveTo                func(uintptr, float32, float32)
-	bridgeSpriteMoveBy                func(uintptr, float32, float32)
-	bridgeSpriteGetPosition           func(uintptr, *float32, *float32)
-	bridgeSpriteSetZIndex             func(uintptr, int16)
-	bridgeSpriteGetZIndex             func(uintptr) int16
-	bridgeSpriteSetTag                func(uintptr, uint8)
-	bridgeSpriteGetTag                func(uintptr) uint8
-	bridgeSpriteSetVisible            func(uintptr, int32)
-	bridgeSpriteIsVisible             func(uintptr) int32
-	bridgeSpriteSetOpaque             func(uintptr, int32)
-	bridgeSpriteSetDrawMode           func(uintptr, int32)
-	bridgeSpriteSetImageFlip          func(uintptr, int32)
-	bridgeSpriteGetImageFlip          func(uintptr) int32
-	bridgeSpriteSetUpdatesEnabled     func(uintptr, int32)
-	bridgeSpriteSetCollideRect        func(uintptr, float32, float32, float32, float32)
-	bridgeSpriteGetCollideRect        func(uintptr, *float32, *float32, *float32, *float32)
-	bridgeSpriteClearCollideRect      func(uintptr)
-	bridgeSpriteSetCollisionsEnabled  func(uintptr, int32)
-	bridgeSpriteMoveWithCollisions    func(uintptr, float32, float32, *float32, *float32, *int32) uintptr
-	bridgeSpriteCheckCollisions       func(uintptr, *int32) uintptr
-	bridgeSpriteUpdateAndDrawSprites  func()
-	bridgeSpriteSetAlwaysRedraw       func(int32)
-	bridgeSpriteResetCollisionWorld   func()
-	bridgeSpriteQuerySpritesAtPoint   func(float32, float32, *int32) uintptr
-	bridgeSpriteQuerySpritesInRect    func(float32, float32, float32, float32, *int32) uintptr
-	bridgeSpriteQuerySpritesAlongLine func(float32, float32, float32, float32, *int32) uintptr
-	bridgeSpriteAllOverlappingSprites func(*int32) uintptr
+	bridgeSpriteNewSprite                    func() uintptr
+	bridgeSpriteFreeSprite                   func(uintptr)
+	bridgeSpriteAddSprite                    func(uintptr)
+	bridgeSpriteRemoveSprite                 func(uintptr)
+	bridgeSpriteRemoveAllSprites             func()
+	bridgeSpriteGetSpriteCount               func() int32
+	bridgeSpriteSetImage                     func(uintptr, uintptr, int32)
+	bridgeSpriteGetImage                     func(uintptr) uintptr
+	bridgeSpriteSetBounds                    func(uintptr, float32, float32, float32, float32)
+	bridgeSpriteGetBounds                    func(uintptr, *float32, *float32, *float32, *float32)
+	bridgeSpriteMoveTo                       func(uintptr, float32, float32)
+	bridgeSpriteMoveBy                       func(uintptr, float32, float32)
+	bridgeSpriteGetPosition                  func(uintptr, *float32, *float32)
+	bridgeSpriteSetZIndex                    func(uintptr, int16)
+	bridgeSpriteGetZIndex                    func(uintptr) int16
+	bridgeSpriteSetTag                       func(uintptr, uint8)
+	bridgeSpriteGetTag                       func(uintptr) uint8
+	bridgeSpriteSetVisible                   func(uintptr, int32)
+	bridgeSpriteIsVisible                    func(uintptr) int32
+	bridgeSpriteSetOpaque                    func(uintptr, int32)
+	bridgeSpriteSetDrawMode                  func(uintptr, int32)
+	bridgeSpriteSetImageFlip                 func(uintptr, int32)
+	bridgeSpriteGetImageFlip                 func(uintptr) int32
+	bridgeSpriteSetUpdatesEnabled            func(uintptr, int32)
+	bridgeSpriteMarkDirty                    func(uintptr)
+	bridgeSpriteSetCollideRect               func(uintptr, float32, float32, float32, float32)
+	bridgeSpriteGetCollideRect               func(uintptr, *float32, *float32, *float32, *float32)
+	bridgeSpriteClearCollideRect             func(uintptr)
+	bridgeSpriteSetCollisionsEnabled         func(uintptr, int32)
+	bridgeSpriteMoveWithCollisions           func(uintptr, float32, float32, *float32, *float32, *int32) uintptr
+	bridgeSpriteCheckCollisions              func(uintptr, *int32) uintptr
+	bridgeSpriteDrawSprites                  func()
+	bridgeSpriteUpdateAndDrawSprites         func()
+	bridgeSpriteSetAlwaysRedraw              func(int32)
+	bridgeSpriteResetCollisionWorld          func()
+	bridgeSpriteQuerySpritesAtPoint          func(float32, float32, *int32) uintptr
+	bridgeSpriteQuerySpritesInRect           func(float32, float32, float32, float32, *int32) uintptr
+	bridgeSpriteQuerySpritesAlongLine        func(float32, float32, float32, float32, *int32) uintptr
+	bridgeSpriteAllOverlappingSprites        func(*int32) uintptr
+	bridgeSpriteSetUpdateFunction            func(uintptr, uintptr)
+	bridgeSpriteSetDrawFunction              func(uintptr, uintptr)
+	bridgeSpriteSetCollisionResponseFunction func(uintptr, uintptr)
 )
 
 // ============== File Bridge ==============
@@ -304,43 +309,48 @@ type Bridge struct {
 	DisplaySetOffset      func(int32, int32)
 
 	// Sprite
-	SpriteNewSprite             func() uintptr
-	SpriteFreeSprite            func(uintptr)
-	SpriteAddSprite             func(uintptr)
-	SpriteRemoveSprite          func(uintptr)
-	SpriteRemoveAllSprites      func()
-	SpriteGetSpriteCount        func() int32
-	SpriteSetImage              func(uintptr, uintptr, int32)
-	SpriteGetImage              func(uintptr) uintptr
-	SpriteSetBounds             func(uintptr, float32, float32, float32, float32)
-	SpriteGetBounds             func(uintptr, *float32, *float32, *float32, *float32)
-	SpriteMoveTo                func(uintptr, float32, float32)
-	SpriteMoveBy                func(uintptr, float32, float32)
-	SpriteGetPosition           func(uintptr, *float32, *float32)
-	SpriteSetZIndex             func(uintptr, int16)
-	SpriteGetZIndex             func(uintptr) int16
-	SpriteSetTag                func(uintptr, uint8)
-	SpriteGetTag                func(uintptr) uint8
-	SpriteSetVisible            func(uintptr, int32)
-	SpriteIsVisible             func(uintptr) int32
-	SpriteSetOpaque             func(uintptr, int32)
-	SpriteSetDrawMode           func(uintptr, int32)
-	SpriteSetImageFlip          func(uintptr, int32)
-	SpriteGetImageFlip          func(uintptr) int32
-	SpriteSetUpdatesEnabled     func(uintptr, int32)
-	SpriteSetCollideRect        func(uintptr, float32, float32, float32, float32)
-	SpriteGetCollideRect        func(uintptr, *float32, *float32, *float32, *float32)
-	SpriteClearCollideRect      func(uintptr)
-	SpriteSetCollisionsEnabled  func(uintptr, int32)
-	SpriteMoveWithCollisions    func(uintptr, float32, float32, *float32, *float32, *int32) uintptr
-	SpriteCheckCollisions       func(uintptr, *int32) uintptr
-	SpriteUpdateAndDrawSprites  func()
-	SpriteSetAlwaysRedraw       func(int32)
-	SpriteResetCollisionWorld   func()
-	SpriteQuerySpritesAtPoint   func(float32, float32, *int32) uintptr
-	SpriteQuerySpritesInRect    func(float32, float32, float32, float32, *int32) uintptr
-	SpriteQuerySpritesAlongLine func(float32, float32, float32, float32, *int32) uintptr
-	SpriteAllOverlappingSprites func(*int32) uintptr
+	SpriteNewSprite                    func() uintptr
+	SpriteFreeSprite                   func(uintptr)
+	SpriteAddSprite                    func(uintptr)
+	SpriteRemoveSprite                 func(uintptr)
+	SpriteRemoveAllSprites             func()
+	SpriteGetSpriteCount               func() int32
+	SpriteSetImage                     func(uintptr, uintptr, int32)
+	SpriteGetImage                     func(uintptr) uintptr
+	SpriteSetBounds                    func(uintptr, float32, float32, float32, float32)
+	SpriteGetBounds                    func(uintptr, *float32, *float32, *float32, *float32)
+	SpriteMoveTo                       func(uintptr, float32, float32)
+	SpriteMoveBy                       func(uintptr, float32, float32)
+	SpriteGetPosition                  func(uintptr, *float32, *float32)
+	SpriteSetZIndex                    func(uintptr, int16)
+	SpriteGetZIndex                    func(uintptr) int16
+	SpriteSetTag                       func(uintptr, uint8)
+	SpriteGetTag                       func(uintptr) uint8
+	SpriteSetVisible                   func(uintptr, int32)
+	SpriteIsVisible                    func(uintptr) int32
+	SpriteSetOpaque                    func(uintptr, int32)
+	SpriteSetDrawMode                  func(uintptr, int32)
+	SpriteSetImageFlip                 func(uintptr, int32)
+	SpriteGetImageFlip                 func(uintptr) int32
+	SpriteSetUpdatesEnabled            func(uintptr, int32)
+	SpriteMarkDirty                    func(uintptr)
+	SpriteSetCollideRect               func(uintptr, float32, float32, float32, float32)
+	SpriteGetCollideRect               func(uintptr, *float32, *float32, *float32, *float32)
+	SpriteClearCollideRect             func(uintptr)
+	SpriteSetCollisionsEnabled         func(uintptr, int32)
+	SpriteMoveWithCollisions           func(uintptr, float32, float32, *float32, *float32, *int32) uintptr
+	SpriteCheckCollisions              func(uintptr, *int32) uintptr
+	SpriteDrawSprites                  func()
+	SpriteUpdateAndDrawSprites         func()
+	SpriteSetAlwaysRedraw              func(int32)
+	SpriteResetCollisionWorld          func()
+	SpriteQuerySpritesAtPoint          func(float32, float32, *int32) uintptr
+	SpriteQuerySpritesInRect           func(float32, float32, float32, float32, *int32) uintptr
+	SpriteQuerySpritesAlongLine        func(float32, float32, float32, float32, *int32) uintptr
+	SpriteAllOverlappingSprites        func(*int32) uintptr
+	SpriteSetUpdateFunction            func(uintptr, uintptr)
+	SpriteSetDrawFunction              func(uintptr, uintptr)
+	SpriteSetCollisionResponseFunction func(uintptr, uintptr)
 
 	// File
 	FileOpen   func(*byte, int32) uintptr
@@ -510,12 +520,14 @@ func RegisterBridge(b Bridge) {
 	bridgeSpriteSetImageFlip = b.SpriteSetImageFlip
 	bridgeSpriteGetImageFlip = b.SpriteGetImageFlip
 	bridgeSpriteSetUpdatesEnabled = b.SpriteSetUpdatesEnabled
+	bridgeSpriteMarkDirty = b.SpriteMarkDirty
 	bridgeSpriteSetCollideRect = b.SpriteSetCollideRect
 	bridgeSpriteGetCollideRect = b.SpriteGetCollideRect
 	bridgeSpriteClearCollideRect = b.SpriteClearCollideRect
 	bridgeSpriteSetCollisionsEnabled = b.SpriteSetCollisionsEnabled
 	bridgeSpriteMoveWithCollisions = b.SpriteMoveWithCollisions
 	bridgeSpriteCheckCollisions = b.SpriteCheckCollisions
+	bridgeSpriteDrawSprites = b.SpriteDrawSprites
 	bridgeSpriteUpdateAndDrawSprites = b.SpriteUpdateAndDrawSprites
 	bridgeSpriteSetAlwaysRedraw = b.SpriteSetAlwaysRedraw
 	bridgeSpriteResetCollisionWorld = b.SpriteResetCollisionWorld
@@ -523,6 +535,9 @@ func RegisterBridge(b Bridge) {
 	bridgeSpriteQuerySpritesInRect = b.SpriteQuerySpritesInRect
 	bridgeSpriteQuerySpritesAlongLine = b.SpriteQuerySpritesAlongLine
 	bridgeSpriteAllOverlappingSprites = b.SpriteAllOverlappingSprites
+	bridgeSpriteSetUpdateFunction = b.SpriteSetUpdateFunction
+	bridgeSpriteSetDrawFunction = b.SpriteSetDrawFunction
+	bridgeSpriteSetCollisionResponseFunction = b.SpriteSetCollisionResponseFunction
 
 	// File
 	bridgeFileOpen = b.FileOpen

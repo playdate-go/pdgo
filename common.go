@@ -161,6 +161,26 @@ const (
 	LanguageUnknown  PDLanguage = 2
 )
 
+// PDRect represents a rectangle with float coordinates
+type PDRect struct {
+	X      float32
+	Y      float32
+	Width  float32
+	Height float32
+}
+
+// CollisionPoint represents a collision point
+type CollisionPoint struct {
+	X float32
+	Y float32
+}
+
+// CollisionVector represents a collision normal vector
+type CollisionVector struct {
+	X int
+	Y int
+}
+
 // BitmapData holds bitmap pixel data information
 type BitmapData struct {
 	Width    int
