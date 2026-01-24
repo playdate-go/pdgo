@@ -1,7 +1,8 @@
 //go:build !tinygo
 
 // Package pdgo provides Go bindings for the Playdate SDK C API.
-// This is the CGO implementation for simulator builds.
+// This is the CGO implementation for simulator builds. The TinyGo implementation for device builds is the same.
+// CGO (simulator) and TinyGo (device) APIs are fully consistent
 package pdgo
 
 /*

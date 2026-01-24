@@ -472,10 +472,9 @@ That's it! and you may forget about TinyGo (`pdgoc` will use it automatically un
 > We don't support Windows OS currently, supported: Linux, macOS.  
 > You may need to wait for Windows support, or you can make a contribution.
 
-
 ## API Bindings
-
-Please see [API Bindings](API_bindings.md)
+The latest full documentation for API bindings is hosted here:
+https://pkg.go.dev/github.com/playdate-go/pdgo#section-documentation
 
 ## Examples
 
@@ -562,7 +561,7 @@ cd ..
     - [x] Hello World
     - [x] Life
     - [ ] Tilemap
-    - [ ] Sprite Game
+    - [x] Sprite Game
     - [ ] Sprite Collisions
     - [ ] Particles
     - [ ] Networking
