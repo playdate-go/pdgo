@@ -487,7 +487,9 @@ Each example includes a `build.sh` script that runs `pdgoc` with all necessary f
 **Sprite Game** -- [examples/spritegame](examples/spritegame)
 
 ```bash
-cd examples/spritegame
+cd examples/spritegame/Source 
+go get github.com/playdate-go/pdgo@latest
+cd ..
 ./build.sh
 ```
 
@@ -499,7 +501,9 @@ Is a cellular automaton developed by the British mathematician John Horton Conwa
 This is a Conway's Game of Life simulation example. 
 
 ```bash
-cd examples/life
+cd examples/life/Source
+go get github.com/playdate-go/pdgo@latest
+cd ..
 ./build.sh
 ```
 
@@ -511,7 +515,9 @@ cd examples/life
 A simple application displays a black filled square that bounces continuously off all four edges of the screen.
 
 ```bash
-cd examples/bouncing_square
+cd examples/bouncing_square/Source
+go get github.com/playdate-go/pdgo@latest
+cd ..
 ./build.sh
 ```
 
@@ -524,7 +530,9 @@ cd examples/bouncing_square
 A simple application that displays the Go programming language's mascot, the Gopher.
 
 ```bash
-cd examples/go_logo
+cd examples/go_logo/Source
+go get github.com/playdate-go/pdgo@latest
+cd ..
 ./build.sh
 ```
 
@@ -537,7 +545,9 @@ cd examples/go_logo
 Classic "Hello World!" text bouncing around the screen with FPS counter, this example was directly rewritten from C to Go from official Playdate SDK examples.
 
 ```bash
-cd examples/hello_world
+cd examples/hello_world/Source
+go get github.com/playdate-go/pdgo@latest
+cd ..
 ./build.sh
 ```
 
