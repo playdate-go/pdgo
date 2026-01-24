@@ -1,6 +1,4 @@
 // Package core implements a shoot-em-up game for Playdate
-// Uses sprites for rendering but manual update loop for logic
-// (TinyGo doesn't support sprite callbacks)
 package core
 
 import (
