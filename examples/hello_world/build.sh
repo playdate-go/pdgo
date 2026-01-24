@@ -1,7 +1,6 @@
 #!/bin/bash
 
-# Set Playdate SDK path for CGO (adjust if your SDK is in a different location)
-export CGO_CFLAGS="-I$HOME/Developer/PlaydateSDK/C_API -DTARGET_EXTENSION=1"
+export CGO_CFLAGS="-I$PLAYDATE_SDK_PATH/C_API -DTARGET_EXTENSION=1"
 
 pdgoc -device -sim \
   -name=HelloWorld \

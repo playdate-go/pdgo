@@ -5,6 +5,8 @@ PLAYDATE_SDK="$PLAYDATE_SDK_PATH"
 # Set CGO flags for simulator build
 export CGO_CFLAGS="-I$PLAYDATE_SDK/C_API -DTARGET_EXTENSION=1"
 
+go get github.com/playdate-go/pdgo@latest
+
 # Copy images from SDK's Sprite Game example if not already present
 if [ ! -d "Source/images" ]; then
   echo "Copying images from Playdate SDK..."
