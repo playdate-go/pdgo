@@ -1,0 +1,5 @@
+module 3d_demo
+
+go 1.21
+
+require github.com/playdate-go/pdgo v0.1.2

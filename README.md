@@ -483,6 +483,17 @@ https://pkg.go.dev/github.com/playdate-go/pdgo#section-documentation
 
 Each example includes a `build.sh` script that runs `pdgoc` with all necessary flags.
 
+**3D Demo** -- [examples/3d_demo](examples/3d_demo)
+
+```bash
+cd examples/3d_demo/Source 
+go get github.com/playdate-go/pdgo@latest
+cd ..
+./build.sh
+```
+
+<img src="assets/examples/ex_3d_demo.gif" alt="Life" width="300">
+
 **Sprite Game** -- [examples/spritegame](examples/spritegame)
 
 ```bash
