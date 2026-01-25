@@ -481,57 +481,28 @@ https://pkg.go.dev/github.com/playdate-go/pdgo#section-documentation
 > [!NOTE]
 > We will add more complex examples as the project progresses
 
+To build all examples please do this:
+```bash
+# in project repo root
+chmod +x examples/build_all.sh 
+chmod +x examples/*/build.sh
+./examples/build_all.sh
+```
+
 Each example includes a `build.sh` script that runs `pdgoc` with all necessary flags.
 
 **3D Library** -- [examples/3d_library](examples/3d_library)
-```bash
-cd examples/3d_library/Source 
-go get github.com/playdate-go/pdgo@latest
-cd ..
-./build.sh
-```
 
 **Sprite Game** -- [examples/spritegame](examples/spritegame)
-```bash
-cd examples/spritegame/Source 
-go get github.com/playdate-go/pdgo@latest
-cd ..
-./build.sh
-```
 
 **Conway's Game of Life** -- [examples/life](examples/life)
-```bash
-cd examples/life/Source
-go get github.com/playdate-go/pdgo@latest
-cd ..
-./build.sh
-```
 
 **Bouncing Square** -- [examples/bouncing_square](examples/bouncing_square)
-```bash
-cd examples/bouncing_square/Source
-go get github.com/playdate-go/pdgo@latest
-cd ..
-./build.sh
-```
 
 **Go Logo** -- [examples/go_logo](examples/go_logo)
-```bash
-cd examples/go_logo/Source
-go get github.com/playdate-go/pdgo@latest
-cd ..
-./build.sh
-```
-
----
 
 **Hello World** -- [examples/hello_world](examples/hello_world)
-```bash
-cd examples/hello_world/Source
-go get github.com/playdate-go/pdgo@latest
-cd ..
-./build.sh
-```
+
 
 ## Roadmap
 
