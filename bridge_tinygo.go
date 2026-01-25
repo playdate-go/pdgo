@@ -199,6 +199,23 @@ var (
 	// Global
 	bridgeSoundGetHeadphoneState func(*int32, *int32)
 	bridgeSoundSetOutputsActive  func(int32, int32)
+
+	// Synth
+	bridgeSoundSynthNew          func() uintptr
+	bridgeSoundSynthFree         func(uintptr)
+	bridgeSoundSynthSetWaveform  func(uintptr, int32)
+	bridgeSoundSynthSetAttack    func(uintptr, float32)
+	bridgeSoundSynthSetDecay     func(uintptr, float32)
+	bridgeSoundSynthSetSustain   func(uintptr, float32)
+	bridgeSoundSynthSetRelease   func(uintptr, float32)
+	bridgeSoundSynthSetTranspose func(uintptr, float32)
+	bridgeSoundSynthPlayNote     func(uintptr, float32, float32, float32, uint32)
+	bridgeSoundSynthPlayMIDINote func(uintptr, float32, float32, float32, uint32)
+	bridgeSoundSynthNoteOff      func(uintptr, uint32)
+	bridgeSoundSynthStop         func(uintptr)
+	bridgeSoundSynthSetVolume    func(uintptr, float32, float32)
+	bridgeSoundSynthGetVolume    func(uintptr, *float32, *float32)
+	bridgeSoundSynthIsPlaying    func(uintptr) int32
 )
 
 // ============== Lua Bridge ==============
@@ -398,6 +415,23 @@ type Bridge struct {
 	SoundGetHeadphoneState func(*int32, *int32)
 	SoundSetOutputsActive  func(int32, int32)
 
+	// Sound - Synth
+	SoundSynthNew          func() uintptr
+	SoundSynthFree         func(uintptr)
+	SoundSynthSetWaveform  func(uintptr, int32)
+	SoundSynthSetAttack    func(uintptr, float32)
+	SoundSynthSetDecay     func(uintptr, float32)
+	SoundSynthSetSustain   func(uintptr, float32)
+	SoundSynthSetRelease   func(uintptr, float32)
+	SoundSynthSetTranspose func(uintptr, float32)
+	SoundSynthPlayNote     func(uintptr, float32, float32, float32, uint32)
+	SoundSynthPlayMIDINote func(uintptr, float32, float32, float32, uint32)
+	SoundSynthNoteOff      func(uintptr, uint32)
+	SoundSynthStop         func(uintptr)
+	SoundSynthSetVolume    func(uintptr, float32, float32)
+	SoundSynthGetVolume    func(uintptr, *float32, *float32)
+	SoundSynthIsPlaying    func(uintptr) int32
+
 	// Lua
 	LuaGetArgCount  func() int32
 	LuaGetArgType   func(int32) int32
@@ -584,6 +618,23 @@ func RegisterBridge(b Bridge) {
 	// Sound - Global
 	bridgeSoundGetHeadphoneState = b.SoundGetHeadphoneState
 	bridgeSoundSetOutputsActive = b.SoundSetOutputsActive
+
+	// Sound - Synth
+	bridgeSoundSynthNew = b.SoundSynthNew
+	bridgeSoundSynthFree = b.SoundSynthFree
+	bridgeSoundSynthSetWaveform = b.SoundSynthSetWaveform
+	bridgeSoundSynthSetAttack = b.SoundSynthSetAttack
+	bridgeSoundSynthSetDecay = b.SoundSynthSetDecay
+	bridgeSoundSynthSetSustain = b.SoundSynthSetSustain
+	bridgeSoundSynthSetRelease = b.SoundSynthSetRelease
+	bridgeSoundSynthSetTranspose = b.SoundSynthSetTranspose
+	bridgeSoundSynthPlayNote = b.SoundSynthPlayNote
+	bridgeSoundSynthPlayMIDINote = b.SoundSynthPlayMIDINote
+	bridgeSoundSynthNoteOff = b.SoundSynthNoteOff
+	bridgeSoundSynthStop = b.SoundSynthStop
+	bridgeSoundSynthSetVolume = b.SoundSynthSetVolume
+	bridgeSoundSynthGetVolume = b.SoundSynthGetVolume
+	bridgeSoundSynthIsPlaying = b.SoundSynthIsPlaying
 
 	// Lua
 	bridgeLuaGetArgCount = b.LuaGetArgCount

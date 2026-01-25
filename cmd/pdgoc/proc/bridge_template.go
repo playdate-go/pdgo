@@ -474,6 +474,53 @@ func soundGetHeadphoneState(headphone, mic *int32)
 //go:linkname soundSetOutputsActive pd_sound_setOutputsActive
 func soundSetOutputsActive(headphone, speaker int32)
 
+// ============== Sound - Synth Functions ==============
+
+//go:linkname soundSynthNew pd_sound_synth_new
+func soundSynthNew() uintptr
+
+//go:linkname soundSynthFree pd_sound_synth_free
+func soundSynthFree(synth uintptr)
+
+//go:linkname soundSynthSetWaveform pd_sound_synth_setWaveform
+func soundSynthSetWaveform(synth uintptr, wave int32)
+
+//go:linkname soundSynthSetAttackTime pd_sound_synth_setAttackTime
+func soundSynthSetAttackTime(synth uintptr, attack float32)
+
+//go:linkname soundSynthSetDecayTime pd_sound_synth_setDecayTime
+func soundSynthSetDecayTime(synth uintptr, decay float32)
+
+//go:linkname soundSynthSetSustainLevel pd_sound_synth_setSustainLevel
+func soundSynthSetSustainLevel(synth uintptr, sustain float32)
+
+//go:linkname soundSynthSetReleaseTime pd_sound_synth_setReleaseTime
+func soundSynthSetReleaseTime(synth uintptr, release float32)
+
+//go:linkname soundSynthSetTranspose pd_sound_synth_setTranspose
+func soundSynthSetTranspose(synth uintptr, halfSteps float32)
+
+//go:linkname soundSynthPlayNote pd_sound_synth_playNote
+func soundSynthPlayNote(synth uintptr, freq, vel, length float32, when uint32)
+
+//go:linkname soundSynthPlayMIDINote pd_sound_synth_playMIDINote
+func soundSynthPlayMIDINote(synth uintptr, note, vel, length float32, when uint32)
+
+//go:linkname soundSynthNoteOff pd_sound_synth_noteOff
+func soundSynthNoteOff(synth uintptr, when uint32)
+
+//go:linkname soundSynthStop pd_sound_synth_stop
+func soundSynthStop(synth uintptr)
+
+//go:linkname soundSynthSetVolume pd_sound_synth_setVolume
+func soundSynthSetVolume(synth uintptr, left, right float32)
+
+//go:linkname soundSynthGetVolume pd_sound_synth_getVolume
+func soundSynthGetVolume(synth uintptr, left, right *float32)
+
+//go:linkname soundSynthIsPlaying pd_sound_synth_isPlaying
+func soundSynthIsPlaying(synth uintptr) int32
+
 // ============== Register Bridge ==============
 
 func init() {
@@ -637,5 +684,22 @@ func init() {
 		// Sound - Global
 		SoundGetHeadphoneState: soundGetHeadphoneState,
 		SoundSetOutputsActive:  soundSetOutputsActive,
+
+		// Sound - Synth
+		SoundSynthNew:          soundSynthNew,
+		SoundSynthFree:         soundSynthFree,
+		SoundSynthSetWaveform:  soundSynthSetWaveform,
+		SoundSynthSetAttack:    soundSynthSetAttackTime,
+		SoundSynthSetDecay:     soundSynthSetDecayTime,
+		SoundSynthSetSustain:   soundSynthSetSustainLevel,
+		SoundSynthSetRelease:   soundSynthSetReleaseTime,
+		SoundSynthSetTranspose: soundSynthSetTranspose,
+		SoundSynthPlayNote:     soundSynthPlayNote,
+		SoundSynthPlayMIDINote: soundSynthPlayMIDINote,
+		SoundSynthNoteOff:      soundSynthNoteOff,
+		SoundSynthStop:         soundSynthStop,
+		SoundSynthSetVolume:    soundSynthSetVolume,
+		SoundSynthGetVolume:    soundSynthGetVolume,
+		SoundSynthIsPlaying:    soundSynthIsPlaying,
 	})
 }`

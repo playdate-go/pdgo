@@ -39,11 +39,147 @@ type SoundEffect struct {
 	ptr uintptr
 }
 
+// SoundWaveform represents synth waveforms
+type SoundWaveform int32
+
+const (
+	WaveformSquare    SoundWaveform = 0
+	WaveformTriangle  SoundWaveform = 1
+	WaveformSine      SoundWaveform = 2
+	WaveformNoise     SoundWaveform = 3
+	WaveformSawtooth  SoundWaveform = 4
+	WaveformPOPhase   SoundWaveform = 5
+	WaveformPODigital SoundWaveform = 6
+	WaveformPOVosim   SoundWaveform = 7
+)
+
+// MIDINote represents a MIDI note number
+type MIDINote float32
+
 // Sound provides access to sound functions
-type Sound struct{}
+type Sound struct {
+	Synth *SynthAPI
+}
 
 func newSound() *Sound {
-	return &Sound{}
+	return &Sound{
+		Synth: &SynthAPI{},
+	}
+}
+
+// SynthAPI wraps synth functions
+type SynthAPI struct{}
+
+// NewSynth creates a new synth
+func (sy *SynthAPI) NewSynth() *PDSynth {
+	if bridgeSoundSynthNew != nil {
+		ptr := bridgeSoundSynthNew()
+		if ptr != 0 {
+			return &PDSynth{ptr: ptr}
+		}
+	}
+	return nil
+}
+
+// FreeSynth frees a synth
+func (sy *SynthAPI) FreeSynth(synth *PDSynth) {
+	if bridgeSoundSynthFree != nil && synth != nil && synth.ptr != 0 {
+		bridgeSoundSynthFree(synth.ptr)
+		synth.ptr = 0
+	}
+}
+
+// SetWaveform sets the waveform
+func (sy *SynthAPI) SetWaveform(synth *PDSynth, wave SoundWaveform) {
+	if bridgeSoundSynthSetWaveform != nil && synth != nil && synth.ptr != 0 {
+		bridgeSoundSynthSetWaveform(synth.ptr, int32(wave))
+	}
+}
+
+// SetAttackTime sets the attack time
+func (sy *SynthAPI) SetAttackTime(synth *PDSynth, attack float32) {
+	if bridgeSoundSynthSetAttack != nil && synth != nil && synth.ptr != 0 {
+		bridgeSoundSynthSetAttack(synth.ptr, attack)
+	}
+}
+
+// SetDecayTime sets the decay time
+func (sy *SynthAPI) SetDecayTime(synth *PDSynth, decay float32) {
+	if bridgeSoundSynthSetDecay != nil && synth != nil && synth.ptr != 0 {
+		bridgeSoundSynthSetDecay(synth.ptr, decay)
+	}
+}
+
+// SetSustainLevel sets the sustain level
+func (sy *SynthAPI) SetSustainLevel(synth *PDSynth, sustain float32) {
+	if bridgeSoundSynthSetSustain != nil && synth != nil && synth.ptr != 0 {
+		bridgeSoundSynthSetSustain(synth.ptr, sustain)
+	}
+}
+
+// SetReleaseTime sets the release time
+func (sy *SynthAPI) SetReleaseTime(synth *PDSynth, release float32) {
+	if bridgeSoundSynthSetRelease != nil && synth != nil && synth.ptr != 0 {
+		bridgeSoundSynthSetRelease(synth.ptr, release)
+	}
+}
+
+// SetTranspose sets the transpose
+func (sy *SynthAPI) SetTranspose(synth *PDSynth, halfSteps float32) {
+	if bridgeSoundSynthSetTranspose != nil && synth != nil && synth.ptr != 0 {
+		bridgeSoundSynthSetTranspose(synth.ptr, halfSteps)
+	}
+}
+
+// PlayNote plays a note
+func (sy *SynthAPI) PlayNote(synth *PDSynth, freq, vel, length float32, when uint32) {
+	if bridgeSoundSynthPlayNote != nil && synth != nil && synth.ptr != 0 {
+		bridgeSoundSynthPlayNote(synth.ptr, freq, vel, length, when)
+	}
+}
+
+// PlayMIDINote plays a MIDI note
+func (sy *SynthAPI) PlayMIDINote(synth *PDSynth, note MIDINote, vel, length float32, when uint32) {
+	if bridgeSoundSynthPlayMIDINote != nil && synth != nil && synth.ptr != 0 {
+		bridgeSoundSynthPlayMIDINote(synth.ptr, float32(note), vel, length, when)
+	}
+}
+
+// NoteOff releases a note
+func (sy *SynthAPI) NoteOff(synth *PDSynth, when uint32) {
+	if bridgeSoundSynthNoteOff != nil && synth != nil && synth.ptr != 0 {
+		bridgeSoundSynthNoteOff(synth.ptr, when)
+	}
+}
+
+// Stop stops the synth
+func (sy *SynthAPI) Stop(synth *PDSynth) {
+	if bridgeSoundSynthStop != nil && synth != nil && synth.ptr != 0 {
+		bridgeSoundSynthStop(synth.ptr)
+	}
+}
+
+// SetVolume sets the volume
+func (sy *SynthAPI) SetVolume(synth *PDSynth, left, right float32) {
+	if bridgeSoundSynthSetVolume != nil && synth != nil && synth.ptr != 0 {
+		bridgeSoundSynthSetVolume(synth.ptr, left, right)
+	}
+}
+
+// GetVolume returns the volume
+func (sy *SynthAPI) GetVolume(synth *PDSynth) (left, right float32) {
+	if bridgeSoundSynthGetVolume != nil && synth != nil && synth.ptr != 0 {
+		bridgeSoundSynthGetVolume(synth.ptr, &left, &right)
+	}
+	return
+}
+
+// IsPlaying returns whether the synth is playing
+func (sy *SynthAPI) IsPlaying(synth *PDSynth) bool {
+	if bridgeSoundSynthIsPlaying != nil && synth != nil && synth.ptr != 0 {
+		return bridgeSoundSynthIsPlaying(synth.ptr) != 0
+	}
+	return false
 }
 
 // ============== FilePlayer ==============

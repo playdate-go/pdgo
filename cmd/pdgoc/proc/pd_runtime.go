@@ -284,12 +284,46 @@ struct playdate_sound_sampleplayer {
     void (*setPaused)(struct SamplePlayer* player, int flag);
 };
 
+struct PDSynth;
+typedef int SoundWaveform;
+
+struct playdate_sound_synth {
+    struct PDSynth* (*newSynth)(void);
+    void (*freeSynth)(struct PDSynth* synth);
+    void (*setWaveform)(struct PDSynth* synth, SoundWaveform wave);
+    void* setGenerator;
+    void (*setSample)(struct PDSynth* synth, struct AudioSample* sample, uint32_t sustainStart, uint32_t sustainEnd);
+    void (*setAttackTime)(struct PDSynth* synth, float attack);
+    void (*setDecayTime)(struct PDSynth* synth, float decay);
+    void (*setSustainLevel)(struct PDSynth* synth, float level);
+    void (*setReleaseTime)(struct PDSynth* synth, float release);
+    void (*setTranspose)(struct PDSynth* synth, float halfSteps);
+    void* setFrequencyModulator;
+    void* getFrequencyModulator;
+    void* setAmplitudeModulator;
+    void* getAmplitudeModulator;
+    int (*getParameterCount)(struct PDSynth* synth);
+    int (*setParameter)(struct PDSynth* synth, int parameter, float value);
+    void* setParameterModulator;
+    void* getParameterModulator;
+    void (*playNote)(struct PDSynth* synth, float freq, float vel, float len, uint32_t when);
+    void (*playMIDINote)(struct PDSynth* synth, float note, float vel, float len, uint32_t when);
+    void (*noteOff)(struct PDSynth* synth, uint32_t when);
+    void (*stop)(struct PDSynth* synth);
+    void (*setVolume)(struct PDSynth* synth, float left, float right);
+    void (*getVolume)(struct PDSynth* synth, float* left, float* right);
+    int (*isPlaying)(struct PDSynth* synth);
+    void* getEnvelope;
+    int (*setWavetable)(struct PDSynth* synth, struct AudioSample* sample, int log2size, int columns, int rows);
+    struct PDSynth* (*copy)(struct PDSynth* synth);
+};
+
 struct playdate_sound {
     void* channel;
     const struct playdate_sound_fileplayer* fileplayer;
     const struct playdate_sound_sample* sample;
     const struct playdate_sound_sampleplayer* sampleplayer;
-    void* synth;
+    const struct playdate_sound_synth* synth;
     void* sequence;
     void* effect;
     void* lfo;
@@ -548,6 +582,23 @@ void pd_sound_freeSample(struct AudioSample* s) { if (pd && pd->sound && pd->sou
 
 void pd_sound_getHeadphoneState(int* h, int* m) { if (pd && pd->sound) pd->sound->getHeadphoneState(h, m, 0); }
 void pd_sound_setOutputsActive(int h, int s) { if (pd && pd->sound) pd->sound->setOutputsActive(h, s); }
+
+// ============== Synth API Wrappers ==============
+struct PDSynth* pd_sound_synth_new(void) { return pd && pd->sound && pd->sound->synth ? pd->sound->synth->newSynth() : 0; }
+void pd_sound_synth_free(struct PDSynth* s) { if (pd && pd->sound && pd->sound->synth && s) pd->sound->synth->freeSynth(s); }
+void pd_sound_synth_setWaveform(struct PDSynth* s, int wave) { if (pd && pd->sound && pd->sound->synth && s) pd->sound->synth->setWaveform(s, wave); }
+void pd_sound_synth_setAttackTime(struct PDSynth* s, float t) { if (pd && pd->sound && pd->sound->synth && s) pd->sound->synth->setAttackTime(s, t); }
+void pd_sound_synth_setDecayTime(struct PDSynth* s, float t) { if (pd && pd->sound && pd->sound->synth && s) pd->sound->synth->setDecayTime(s, t); }
+void pd_sound_synth_setSustainLevel(struct PDSynth* s, float l) { if (pd && pd->sound && pd->sound->synth && s) pd->sound->synth->setSustainLevel(s, l); }
+void pd_sound_synth_setReleaseTime(struct PDSynth* s, float t) { if (pd && pd->sound && pd->sound->synth && s) pd->sound->synth->setReleaseTime(s, t); }
+void pd_sound_synth_setTranspose(struct PDSynth* s, float h) { if (pd && pd->sound && pd->sound->synth && s) pd->sound->synth->setTranspose(s, h); }
+void pd_sound_synth_playNote(struct PDSynth* s, float freq, float vel, float len, uint32_t when) { if (pd && pd->sound && pd->sound->synth && s) pd->sound->synth->playNote(s, freq, vel, len, when); }
+void pd_sound_synth_playMIDINote(struct PDSynth* s, float note, float vel, float len, uint32_t when) { if (pd && pd->sound && pd->sound->synth && s) pd->sound->synth->playMIDINote(s, note, vel, len, when); }
+void pd_sound_synth_noteOff(struct PDSynth* s, uint32_t when) { if (pd && pd->sound && pd->sound->synth && s) pd->sound->synth->noteOff(s, when); }
+void pd_sound_synth_stop(struct PDSynth* s) { if (pd && pd->sound && pd->sound->synth && s) pd->sound->synth->stop(s); }
+void pd_sound_synth_setVolume(struct PDSynth* s, float l, float r) { if (pd && pd->sound && pd->sound->synth && s) pd->sound->synth->setVolume(s, l, r); }
+void pd_sound_synth_getVolume(struct PDSynth* s, float* l, float* r) { if (pd && pd->sound && pd->sound->synth && s) pd->sound->synth->getVolume(s, l, r); }
+int pd_sound_synth_isPlaying(struct PDSynth* s) { return pd && pd->sound && pd->sound->synth && s ? pd->sound->synth->isPlaying(s) : 0; }
 
 // ============== Event Handler ==============
 extern int updateCallback(void* userdata);
