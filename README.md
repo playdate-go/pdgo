@@ -492,7 +492,7 @@ cd ..
 ./build.sh
 ```
 
-<img src="assets/examples/ex_3d_library.gif" alt="Life" width="300">
+<img src="https://media.giphy.com/media/fZgAZoJAcB1amu4GMv/giphy.gif" alt="Life" width="300">
 
 **Sprite Game** -- [examples/spritegame](examples/spritegame)
 
@@ -503,7 +503,7 @@ cd ..
 ./build.sh
 ```
 
-<img src="assets/examples/ex_spritegame.gif" alt="Life" width="300">
+<img src="https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjExbW11d2xhYW02MHZtdTg5cGNxOXpzeGtkNmJwM3E2OHc3aTlsMGN3eCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/A5499QHcCncy9EfHNm/giphy.gif" alt="Life" width="300">
 
 **Conway's Game of Life** -- [examples/life](examples/life)
 
@@ -517,7 +517,7 @@ cd ..
 ./build.sh
 ```
 
-<img src="assets/examples/ex_life.gif" alt="Life" width="300">
+<img src="https://media.giphy.com/media/5eLe5bxh9Q5oA0ZYiS/giphy.gif" alt="Life" width="300">
 
 
 **Bouncing Square** -- [examples/bouncing_square](examples/bouncing_square)
@@ -531,7 +531,7 @@ cd ..
 ./build.sh
 ```
 
-<img src="assets/examples/ex_bouncing_square.gif" alt="Bouncing Square" width="300">
+<img src="https://media.giphy.com/media/tkTH9t06yf8k5mE2yz/giphy.gif" alt="Bouncing Square" width="300">
 
 ---
 
@@ -561,7 +561,7 @@ cd ..
 ./build.sh
 ```
 
-<img src="assets/examples/ex_hello_world.gif" alt="Go Logo" width="300">
+<img src="https://media.giphy.com/media/eBpbBnlpu6D8MR1ujV/giphy.gif" alt="Go Logo" width="300">
 
 
 
