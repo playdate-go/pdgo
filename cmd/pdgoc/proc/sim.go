@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 )
@@ -82,7 +83,8 @@ func (p *Processor) execBuildGoHostLib() (string, error) {
 	log.Printf("file has been seccessfully created: %s", mainCgoGoFilePath)
 
 	// Build using "." since we're now in the Source directory
-	if err = p.execCmd("go", []string{"build", "-ldflags", "-w -s", "-gcflags", "all=-l", "-trimpath", "-buildvcs=false", "-race=false", "-o", libPath, "-buildmode=c-shared", "."}); err != nil {
+	// Set CGO_CFLAGS automatically
+	if err = p.execGoBuildSim(libPath); err != nil {
 		return "", err
 	}
 
@@ -111,4 +113,29 @@ func (p *Processor) resolveHostLibExt() (string, error) {
 	default:
 		return "", fmt.Errorf("unsupported platform")
 	}
+}
+
+func (p *Processor) execGoBuildSim(libPath string) error {
+	sdkPath := os.Getenv("PLAYDATE_SDK_PATH")
+	if sdkPath == "" {
+		return fmt.Errorf("PLAYDATE_SDK_PATH environment variable is not set")
+	}
+
+	cgoFlags := fmt.Sprintf("-I%s/C_API -DTARGET_EXTENSION=1", sdkPath)
+	log.Printf("setting CGO_CFLAGS=%s", cgoFlags)
+
+	args := []string{"build", "-ldflags", "-w -s", "-gcflags", "all=-l", "-trimpath", "-buildvcs=false", "-race=false", "-o", libPath, "-buildmode=c-shared", "."}
+	log.Printf("running cmd: go %v ...", args)
+
+	cmd := exec.Command("go", args...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Env = append(os.Environ(), "CGO_CFLAGS="+cgoFlags)
+
+	if err := cmd.Run(); err != nil {
+		return err
+	}
+
+	log.Println("successfully ran cmd: go build")
+	return nil
 }
