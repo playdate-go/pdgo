@@ -4,63 +4,48 @@
 ## Menu
 
 - [Overview](#overview)
-- [Community](#community)
-- [CLI Tool Usage](#cli-tool-usage)
+
+- [Usage](#usage)
 - [Internals](#internals)
-    - [Device](#device)
-    - [Simulator](#simulator)
 - [Why Not Go But TinyGo](#why-not-go-but-tinygo)
 - [Flow](#flow)
-    - [Device Build](#device-build)
-    - [Simulator Build](#simulator-build)
 - [How To Start](#how-to-start)
 - [API Bindings](#api-bindings)
 - [Examples](#examples)
 - [Roadmap](#roadmap)
+- [Community](#community)
 - [Attribution](#attribution)
 - [License](#license)
 ---
 
 ## Overview
 
->[!NOTE]
-> This project is currently under active development, all API covered but not all features have been fully tested yet, PRs are always welcome.  
+>[!NOTE]  
+> This project is currently under active development, all API covered but not all features have been fully tested or implemented yet, PRs are always welcome.  
 > Tested on macOS, tinygo 0.40.1 darwin/arm64, go1.25.6, LLVM 20.1.1, Playdate OS 3.0.2.
 
->[!NOTE]
-> Playdate SDK API >= 3.0.2 is required
+>[!NOTE]  
+> Playdate SDK >= 3.0.2 is required  
+> Golang >= 1.21 is requred
 
 Hi, my name is Roman Bielyi, and I'm developing this project in my spare time as a personal initiative.
 This project is an independent effort and is neither endorsed by nor affiliated with [Panic Inc](https://panic.com/).
 
 As a Go developer, I immediately wanted to bring Go to the [Playdate](https://play.date/). It wasn’t straightforward, but I got it working -- hope you’ll enjoy experimenting with it.
 
-## Community
-Using these links and places, you can discuss the PdGo project with each other:
+>[!IMPORTANT]  
+The main objective now is to release a stable 1.0.x version.
+To achieve this, we need to rewrite all official Playdate SDK examples from C/Lua into Go and ensure that the Go API bindings are mature, stable, and provide complete coverage of all subsystems.
 
-Slack
-1) https://gophers.slack.com/archives/C029RQSEE/p1769119174451979
-2) https://gophers.slack.com/archives/CDJD3SUP6/p1769119574841489
+## Usage
 
-Reddit:
-1) https://www.reddit.com/r/golang/comments/1qk1ec9/golang_support_for_playdate_handheld_compiler_sdk/
-2) https://www.reddit.com/r/PlaydateDeveloper/comments/1qk0r60/golang_support_for_playdate_handheld_compiler_sdk/
-3) https://www.reddit.com/r/programming/comments/1qk19kb/playdate_supports_go_language_compiler_sdk/
-4) https://www.reddit.com/r/PlaydateConsole/comments/1qk0wy0/golang_support_for_playdate_handheld_compiler_sdk/
+`pdgoc` is a command-line tool that handles **everything** for building Go apps for Playdate, both Simulator and Device builds.
 
-**Discord**:
-1) https://discord.com/channels/118456055842734083/1464001888243548181
-2) https://discord.com/channels/675983554655551509/1464004567476867247  
+> [!IMPORTANT]  
+> **Always use `pdgoc` for building.** Do not try to run `go build` or `tinygo build` directly because `pdgoc` handles all the complexity: SDK paths, CGO flags, temporary files, etc.
 
-**Playdate Development Forum (this is the main place to discuss)**:
-https://devforum.play.date/t/golang-support-for-playdate-compiler-sdk-bindings-tools-and-examples/24919
-
-## CLI Tool Usage
-
-`pdgoc` (PdGo build tool) is a command-line tool that handles **everything** for building Go apps for Playdate, both Simulator and Device builds.
-
-> [!IMPORTANT]
-> **Always use `pdgoc` for building.** Do not try to run `go build` or `tinygo build` directly because `pdgoc` handles all the complexity: SDK paths, CGO flags, temporary files, and cross-compilation.
+> [!TIP]  
+> The `sim` and `device` flags can be combined to build for both Simulator and Device simultaneously.
 
 | Flag     | Description                                       |
 |----------|---------------------------------------------------|
@@ -68,14 +53,6 @@ https://devforum.play.date/t/golang-support-for-playdate-compiler-sdk-bindings-t
 | `device` | Builds project for the Playdate console only      | 
 | `run`    | Builds and runs project in the Playdate Simulator | 
 
-> [!NOTE]
-> The `sim` and `device` flags can be combined to build for both Simulator and Device simultaneously.
-
-### What pdgoc Does Automatically
-
-- **Simulator builds**: Sets up CGO environment, SDK paths, builds `.dylib`/`.so`, packages into `.pdx`
-- **Device builds**: Creates C bridge, compiles with custom TinyGo, links ARM binary, packages into `.pdx`
-- **Cleanup**: Removes all temporary files after build
 
 | Flag                | Description                                     |
 |---------------------|-------------------------------------------------|
@@ -90,8 +67,6 @@ https://devforum.play.date/t/golang-support-for-playdate-compiler-sdk-bindings-t
 | `content-warn`      | Sets the `contentWarning` property for pdxinfo  |
 | `content-warn2`     | Sets the `contentWarning2` property for pdxinfo |
 
->[!NOTE]
-> `pdxinfo` file will be created automatically during build process and removed when it's finished.
 
 > [!NOTE]  
 > To use the `pdgoc` CLI tool, navigate to the project root directory -- the one containing the `Source` folder with your `.go` source files, `go.mod`, `go.sum`, and any assets.  
@@ -120,6 +95,42 @@ pdgoc -device -sim \
   -bundle-id=com.yourname.myapp \
   -version=1.0 \
   -build-number=1
+```
+
+The `main.go`:
+
+```go
+package main
+
+import (
+	"github.com/playdate-go/pdgo"
+)
+
+// A global pointer to the Playdate API. 
+//Initialized automatically when the game starts. 
+//All SDK calls go through this variable: pd.Graphics.DrawText(...), pd.System.DrawFPS(...), etc.
+var pd *pdgo.PlaydateAPI
+
+
+// Called once when the game launches (during kEventInit).
+// Use this to load images, sounds, fonts, and initialize your game state. The Playdate API (pd) is fully available here.
+func initGame() {
+	
+}
+
+// The main game loop. Called every frame (~30 FPS by default). Here you:
+// Handle input (pd.System.GetButtonState())
+// Update game logic
+// Draw graphics (pd.Graphics.DrawText(), pd.Graphics.DrawBitmap())
+// Return value: 1 to tell Playdate the display was updated and needs refresh. Return 0 if nothing changed (saves battery).
+func update() int {
+	
+}
+
+// Must exist but remains empty. 
+//Playdate doesn't use Go's normal main() entry point, instead, the SDK calls eventHandler which is generated by pdgoc
+func main() {}
+
 ```
 
 # Internals
@@ -540,6 +551,26 @@ Each example includes a `build.sh` script that runs `pdgoc` with all necessary f
 - [X] Write documentation for API bindings
 - [ ] Create unit tests for `pdgoc` and API bindings
 - [ ] Add support for Windows OS
+
+## Community
+Using these links and places, you can discuss the PdGo project with each other:
+
+Slack
+1) https://gophers.slack.com/archives/C029RQSEE/p1769119174451979
+2) https://gophers.slack.com/archives/CDJD3SUP6/p1769119574841489
+
+Reddit:
+1) https://www.reddit.com/r/golang/comments/1qk1ec9/golang_support_for_playdate_handheld_compiler_sdk/
+2) https://www.reddit.com/r/PlaydateDeveloper/comments/1qk0r60/golang_support_for_playdate_handheld_compiler_sdk/
+3) https://www.reddit.com/r/programming/comments/1qk19kb/playdate_supports_go_language_compiler_sdk/
+4) https://www.reddit.com/r/PlaydateConsole/comments/1qk0wy0/golang_support_for_playdate_handheld_compiler_sdk/
+
+**Discord**:
+1) https://discord.com/channels/118456055842734083/1464001888243548181
+2) https://discord.com/channels/675983554655551509/1464004567476867247
+
+**Playdate Development Forum (this is the main place to discuss)**:
+https://devforum.play.date/t/golang-support-for-playdate-compiler-sdk-bindings-tools-and-examples/24919
 
 ## Attribution
 
