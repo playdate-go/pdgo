@@ -492,7 +492,7 @@ cd ..
 ./build.sh
 ```
 
-<img src="https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExaGF4dWRhbW5wdjhvaG1vOXl6NWxwMmVscWo5dTJnNXp4N3YweG1iZCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/fZgAZoJAcB1amu4GMv/giphy.gif" alt="Life" width="300">
+<img src="https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjExM25qMHhtdjQ2dXJwNHJocmU1NzllcXUyaWkxNHpscTVkMHNjZDFyYyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/JVqDkTKvX8mOGlsxRb/giphy.gif" alt="3D Library" width="180">
 
 **Sprite Game** -- [examples/spritegame](examples/spritegame)
 
@@ -503,7 +503,7 @@ cd ..
 ./build.sh
 ```
 
-<img src="https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjExbW11d2xhYW02MHZtdTg5cGNxOXpzeGtkNmJwM3E2OHc3aTlsMGN3eCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/A5499QHcCncy9EfHNm/giphy.gif" alt="Life" width="300">
+<img src="https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExZWZnODZqYmp1a2NxMjBuYjJ1dGRtdTFzNzk1MXd5bjF3NGhkMGZvZyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/quSwRIgikaYlpNBbna/giphy.gif" alt="Sprite Game" width="180">
 
 **Conway's Game of Life** -- [examples/life](examples/life)
 
@@ -517,7 +517,7 @@ cd ..
 ./build.sh
 ```
 
-<img src="https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExZGVpNjRwcWJ4ZHJncXdtbzRmOWE5dDM5eGN4eXZhc3J6N245NWp1NSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/5eLe5bxh9Q5oA0ZYiS/giphy.gif" alt="Life" width="300">
+<img src="https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExNjZ1ZWhyeThld2dubmdwNXR4dmJza2lxZ2MxN3BmN2h2dm5lbXE2MyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/aL8qLinpapm7gDJy4G/giphy.gif" alt="Life" width="180">
 
 
 **Bouncing Square** -- [examples/bouncing_square](examples/bouncing_square)
@@ -531,7 +531,7 @@ cd ..
 ./build.sh
 ```
 
-<img src="https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjExcnVrZXgzYTduMDM4cGcwZW82aGw1NHNyOXZpbGtkeWZtMmR3aTFqciZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/tkTH9t06yf8k5mE2yz/giphy.gif" alt="Bouncing Square" width="300">
+<img src="https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExNXZ6eDU4cTRyNnpzOGhidnBwbDA0Y3kwM3k2NDNrZ2V3MmwxYW9raCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/OYwcZ7NV7UXm8Fn7IA/giphy.gif" alt="Bouncing Square" width="180">
 
 ---
 
@@ -546,7 +546,7 @@ cd ..
 ./build.sh
 ```
 
-<img src="assets/examples/ex_go_logo.png" alt="Go Logo" width="300">
+<img src="assets/examples/ex_go_logo.png" alt="Go Logo" width="180">
 
 ---
 
@@ -561,7 +561,7 @@ cd ..
 ./build.sh
 ```
 
-<img src="https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExeHFvMzgxbHh6bmQwbGpkOXdhaHJiOWtnNzhmY3Q5YjZvbGNoaHZmOCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/eBpbBnlpu6D8MR1ujV/giphy.gif" alt="Go Logo" width="300">
+<img src="https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExdWxjejhmc3F2cmtqaW95dmt4dnJuYWY1ZnYzcWVxdTJiNmZtNjQ4cSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/4FwZSqlS4hddEL4MSK/giphy.gif" alt="Hello World" width="180">
 
 
 
