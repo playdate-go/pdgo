@@ -484,7 +484,6 @@ https://pkg.go.dev/github.com/playdate-go/pdgo#section-documentation
 Each example includes a `build.sh` script that runs `pdgoc` with all necessary flags.
 
 **3D Library** -- [examples/3d_library](examples/3d_library)
-
 ```bash
 cd examples/3d_library/Source 
 go get github.com/playdate-go/pdgo@latest
@@ -492,10 +491,7 @@ cd ..
 ./build.sh
 ```
 
-<img src="https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjExM25qMHhtdjQ2dXJwNHJocmU1NzllcXUyaWkxNHpscTVkMHNjZDFyYyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/JVqDkTKvX8mOGlsxRb/giphy.gif" alt="3D Library" width="180">
-
 **Sprite Game** -- [examples/spritegame](examples/spritegame)
-
 ```bash
 cd examples/spritegame/Source 
 go get github.com/playdate-go/pdgo@latest
@@ -503,13 +499,7 @@ cd ..
 ./build.sh
 ```
 
-<img src="https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExZWZnODZqYmp1a2NxMjBuYjJ1dGRtdTFzNzk1MXd5bjF3NGhkMGZvZyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/quSwRIgikaYlpNBbna/giphy.gif" alt="Sprite Game" width="180">
-
 **Conway's Game of Life** -- [examples/life](examples/life)
-
-Is a cellular automaton developed by the British mathematician John Horton Conway.
-This is a Conway's Game of Life simulation example. 
-
 ```bash
 cd examples/life/Source
 go get github.com/playdate-go/pdgo@latest
@@ -517,13 +507,7 @@ cd ..
 ./build.sh
 ```
 
-<img src="https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExNjZ1ZWhyeThld2dubmdwNXR4dmJza2lxZ2MxN3BmN2h2dm5lbXE2MyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/aL8qLinpapm7gDJy4G/giphy.gif" alt="Life" width="180">
-
-
 **Bouncing Square** -- [examples/bouncing_square](examples/bouncing_square)
-
-A simple application displays a black filled square that bounces continuously off all four edges of the screen.
-
 ```bash
 cd examples/bouncing_square/Source
 go get github.com/playdate-go/pdgo@latest
@@ -531,14 +515,7 @@ cd ..
 ./build.sh
 ```
 
-<img src="https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExNXZ6eDU4cTRyNnpzOGhidnBwbDA0Y3kwM3k2NDNrZ2V3MmwxYW9raCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/OYwcZ7NV7UXm8Fn7IA/giphy.gif" alt="Bouncing Square" width="180">
-
----
-
 **Go Logo** -- [examples/go_logo](examples/go_logo)
-
-A simple application that displays the Go programming language's mascot, the Gopher.
-
 ```bash
 cd examples/go_logo/Source
 go get github.com/playdate-go/pdgo@latest
@@ -546,24 +523,15 @@ cd ..
 ./build.sh
 ```
 
-<img src="assets/examples/ex_go_logo.png" alt="Go Logo" width="180">
-
 ---
 
 **Hello World** -- [examples/hello_world](examples/hello_world)
-
-Classic "Hello World!" text bouncing around the screen with FPS counter, this example was directly rewritten from C to Go from official Playdate SDK examples.
-
 ```bash
 cd examples/hello_world/Source
 go get github.com/playdate-go/pdgo@latest
 cd ..
 ./build.sh
 ```
-
-<img src="https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExdWxjejhmc3F2cmtqaW95dmt4dnJuYWY1ZnYzcWVxdTJiNmZtNjQ4cSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/4FwZSqlS4hddEL4MSK/giphy.gif" alt="Hello World" width="180">
-
-
 
 ## Roadmap
 
