@@ -9,7 +9,7 @@ go get github.com/playdate-go/pdgo@latest
 cd ..
 
 pdgoc -device -sim \
-  -name="3D Demo" \
+  -name="3D Library" \
   -author=PdGo \
   -desc="3D rendering demo with rotating icosahedron" \
   -bundle-id=com.pdgo.3ddemo \
