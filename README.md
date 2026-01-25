@@ -483,16 +483,16 @@ https://pkg.go.dev/github.com/playdate-go/pdgo#section-documentation
 
 Each example includes a `build.sh` script that runs `pdgoc` with all necessary flags.
 
-**3D Demo** -- [examples/3d_demo](examples/3d_demo)
+**3D Library** -- [examples/3d_library](examples/3d_library)
 
 ```bash
-cd examples/3d_demo/Source 
+cd examples/3d_library/Source 
 go get github.com/playdate-go/pdgo@latest
 cd ..
 ./build.sh
 ```
 
-<img src="assets/examples/ex_3d_demo.gif" alt="Life" width="300">
+<img src="assets/examples/ex_3d_library.gif" alt="Life" width="300">
 
 **Sprite Game** -- [examples/spritegame](examples/spritegame)
 
@@ -580,7 +580,7 @@ cd ..
     - [ ] Exposure
     - [ ] Bach.mid
     - [ ] Array
-    - [ ] 3D Library
+    - [x] 3D Library
     - [ ] 2020
     - [ ] Accelerometer Test
     - [ ] Asteroids
