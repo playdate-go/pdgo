@@ -3,6 +3,8 @@
 *.pdx
 
 examples/spritegame/Source/images
+examples/bach_midi/Source/bach.mid
+examples/bach_midi/Source/piano.wav
 
 *.sum
 
