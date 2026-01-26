@@ -879,6 +879,14 @@ func (c *ChannelAPI) AddSource(channel *SoundChannel, source *SoundSource) bool 
 	return C.sound_channel_addSource(c.snd, channel.ptr, source.ptr) != 0
 }
 
+// AddInstrumentAsSource adds an instrument as a source to a channel
+func (c *ChannelAPI) AddInstrumentAsSource(channel *SoundChannel, inst *PDSynthInstrument) bool {
+	if channel == nil || inst == nil {
+		return false
+	}
+	return C.sound_channel_addSource(c.snd, channel.ptr, (*C.SoundSource)(inst.ptr)) != 0
+}
+
 // RemoveSource removes a source from a channel
 func (c *ChannelAPI) RemoveSource(channel *SoundChannel, source *SoundSource) bool {
 	if channel == nil || source == nil {
@@ -1766,6 +1774,25 @@ func (s *SequenceAPI) AllNotesOff(seq *SoundSequence) {
 	}
 }
 
+// GetCurrentStep returns the current step in the sequence
+func (s *SequenceAPI) GetCurrentStep(seq *SoundSequence) int {
+	if seq == nil {
+		return 0
+	}
+	return int(C.sound_sequence_getCurrentStep(s.snd, seq.ptr, nil))
+}
+
+// SetCurrentStep sets the current step in the sequence
+func (s *SequenceAPI) SetCurrentStep(seq *SoundSequence, step, timeOffset int, playNotes bool) {
+	if seq != nil {
+		pn := 0
+		if playNotes {
+			pn = 1
+		}
+		C.sound_sequence_setCurrentStep(s.snd, seq.ptr, C.int(step), C.int(timeOffset), C.int(pn))
+	}
+}
+
 // TrackAPI wraps track functions
 type TrackAPI struct {
 	snd *C.struct_playdate_sound
@@ -1850,6 +1877,38 @@ func (t *TrackAPI) SetMuted(track *SequenceTrack, muted bool) {
 		}
 		C.sound_track_setMuted(t.snd, track.ptr, C.int(flag))
 	}
+}
+
+// GetPolyphony returns the maximum polyphony for the track
+func (t *TrackAPI) GetPolyphony(track *SequenceTrack) int {
+	if track == nil {
+		return 0
+	}
+	return int(C.sound_track_getPolyphony(t.snd, track.ptr))
+}
+
+// GetIndexForStep returns the internal index for the step
+func (t *TrackAPI) GetIndexForStep(track *SequenceTrack, step uint32) int {
+	if track == nil {
+		return 0
+	}
+	return int(C.sound_track_getIndexForStep(t.snd, track.ptr, C.uint32_t(step)))
+}
+
+// GetNoteAtIndex returns note information at the given index
+// Returns step, length, note, velocity, and whether the note exists
+func (t *TrackAPI) GetNoteAtIndex(track *SequenceTrack, index int) (step, length uint32, note MIDINote, velocity float32, ok bool) {
+	if track == nil {
+		return 0, 0, 0, 0, false
+	}
+	var s, l C.uint32_t
+	var n C.MIDINote
+	var v C.float
+	result := C.sound_track_getNoteAtIndex(t.snd, track.ptr, C.int(index), &s, &l, &n, &v)
+	if result == 0 {
+		return 0, 0, 0, 0, false
+	}
+	return uint32(s), uint32(l), MIDINote(n), float32(v), true
 }
 
 // InstrumentAPI wraps instrument functions
