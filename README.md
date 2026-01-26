@@ -502,6 +502,8 @@ chmod +x examples/*/build.sh
 
 Each example includes a `build.sh` script that runs `pdgoc` with all necessary flags.
 
+**Bach MIDI** -- [examples/bach_midi](examples/bach_midi)
+
 **3D Library** -- [examples/3d_library](examples/3d_library)
 
 **Sprite Game** -- [examples/spritegame](examples/spritegame)
@@ -528,7 +530,7 @@ Each example includes a `build.sh` script that runs `pdgoc` with all necessary f
     - [ ] Networking
     - [ ] JSON
     - [ ] Exposure
-    - [ ] Bach.mid
+    - [x] Bach.mid
     - [ ] Array
     - [x] 3D Library
     - [ ] 2020

@@ -9,6 +9,7 @@ echo ""
 
 EXAMPLES=(
     "3d_library"
+    "bach_midi"
     "spritegame"
     "life"
     "bouncing_square"
