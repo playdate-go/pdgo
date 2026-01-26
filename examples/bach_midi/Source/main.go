@@ -11,50 +11,67 @@ var (
 )
 
 func initGame() {
-	// Create and load MIDI sequence
+	pd.System.LogToConsole("init")
+
+	// --- Sequence ---
 	seq = pd.Sound.Sequence.NewSequence()
 	if err := pd.Sound.Sequence.LoadMIDIFile(seq, "bach.mid"); err != nil {
 		pd.System.LogToConsole("Failed to load bach.mid")
 		return
 	}
 
-	// Create instrument for playback
+	// --- Instrument ---
 	inst := pd.Sound.Instrument.NewInstrument()
 	pd.Sound.Instrument.SetVolume(inst, 0.2, 0.2)
 
-	// Add instrument to default channel
 	defaultChannel := pd.Sound.GetDefaultChannel()
 	pd.Sound.Channel.AddInstrumentAsSource(defaultChannel, inst)
 
-	// Get track count
-	trackCount := pd.Sound.Sequence.GetTrackCount(seq)
+	// --- Base synth template ---
+	baseSynth := pd.Sound.Synth.NewSynth()
 
-	// Create synth with piano sample
-	synth := pd.Sound.Synth.NewSynth()
-	piano := pd.Sound.Sample.Load("piano")
-	if piano != nil {
-		pd.Sound.Synth.SetSample(synth, piano, 0, 0)
+	// Try sample first (like in first code)
+	if piano := pd.Sound.Sample.Load("piano"); piano != nil {
+		pd.Sound.Synth.SetSample(baseSynth, piano, 0, 0)
+		pd.System.LogToConsole("Using piano sample")
 	} else {
-		// Fallback to sine wave if no piano sample
-		pd.Sound.Synth.SetWaveform(synth, pdgo.WaveformSine)
+		pd.Sound.Synth.SetWaveform(baseSynth, pdgo.WaveformSine)
+		pd.System.LogToConsole("Using sine fallback")
 	}
 
-	// Assign instrument to each track and add voices
+	// --- Tracks & voices ---
+	trackCount := pd.Sound.Sequence.GetTrackCount(seq)
+
 	for i := 0; i < trackCount; i++ {
 		track := pd.Sound.Sequence.GetTrackAtIndex(seq, uint(i))
+		if track == nil {
+			continue
+		}
+
 		pd.Sound.Track.SetInstrument(track, inst)
 
-		// Add voices based on track polyphony
-		polyphony := pd.Sound.Track.GetPolyphony(track)
-		for p := polyphony; p > 0; p-- {
-			voice := pd.Sound.Synth.Copy(synth)
-			pd.Sound.Instrument.AddVoice(inst, voice, 0, 127, 0)
+		// Polyphony handling WITHOUT synth.Copy
+		poly := pd.Sound.Track.GetPolyphony(track)
+		if poly < 1 {
+			poly = 1
+		}
+
+		for v := 0; v < poly; v++ {
+			s := pd.Sound.Synth.NewSynth()
+
+			// mirror base synth config
+			if piano := pd.Sound.Sample.Load("piano"); piano != nil {
+				pd.Sound.Synth.SetSample(s, piano, 0, 0)
+			} else {
+				pd.Sound.Synth.SetWaveform(s, pdgo.WaveformSine)
+			}
+
+			pd.Sound.Instrument.AddVoice(inst, s, 0, 127, 0)
 		}
 	}
 
-	// Start playback
+	// --- Play ---
 	pd.Sound.Sequence.Play(seq)
-
 	lastStep = -1
 }
 
@@ -64,21 +81,23 @@ func update() int {
 	step := pd.Sound.Sequence.GetCurrentStep(seq)
 
 	if step > lastStep {
-		// Scroll display left by 1 pixel
+		// Scroll left
 		displayBitmap := gfx.GetDisplayBufferBitmap()
 		if displayBitmap != nil {
 			gfx.DrawBitmap(displayBitmap, -1, 0, pdgo.BitmapUnflipped)
 		}
 
-		// Clear the rightmost column
+		// Clear right column
 		gfx.FillRect(399, 0, 1, 240, pdgo.NewColorFromSolid(pdgo.ColorWhite))
 
-		// Draw notes for each track
+		// Draw notes
 		trackCount := pd.Sound.Sequence.GetTrackCount(seq)
 		for i := 0; i < trackCount; i++ {
 			track := pd.Sound.Sequence.GetTrackAtIndex(seq, uint(i))
+			if track == nil {
+				continue
+			}
 
-			// Get notes that started since last step
 			idx := pd.Sound.Track.GetIndexForStep(track, uint32(lastStep+1))
 			for {
 				noteStep, _, note, _, ok := pd.Sound.Track.GetNoteAtIndex(track, idx)
@@ -86,8 +105,6 @@ func update() int {
 					break
 				}
 
-				// Draw note as a small rectangle
-				// Map MIDI note (typically 20-100) to screen Y position
 				y := 240 - 3*(int(note)-20)
 				if y >= 0 && y < 240 {
 					gfx.FillRect(399, y, 1, 3, pdgo.NewColorFromSolid(pdgo.ColorBlack))
@@ -98,7 +115,6 @@ func update() int {
 	}
 
 	lastStep = step
-
 	pd.System.DrawFPS(0, 0)
 	return 1
 }

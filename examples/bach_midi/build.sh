@@ -17,7 +17,7 @@ if [ ! -f "Source/piano.wav" ]; then
   cp "$PLAYDATE_SDK_PATH/C_API/Examples/bach.mid/Source/piano.wav" Source/
 fi
 
-pdgoc -sim \
+pdgoc -device -sim \
   -name=BachMidi \
   -author=PdGo \
   -desc="Bach MIDI player with note visualization" \
