@@ -24,6 +24,18 @@ struct SDFile;
 struct FilePlayer;
 struct SamplePlayer;
 struct AudioSample;
+struct SoundSource;
+struct SoundChannel;
+struct SoundSequence;
+struct SequenceTrack;
+struct PDSynthInstrument;
+
+typedef struct SoundSource SoundSource;
+typedef struct SoundChannel SoundChannel;
+typedef struct SoundSequence SoundSequence;
+typedef struct SequenceTrack SequenceTrack;
+typedef struct PDSynthInstrument PDSynthInstrument;
+typedef float MIDINote;
 
 // ============== System API ==============
 struct playdate_sys {
@@ -318,30 +330,108 @@ struct playdate_sound_synth {
     struct PDSynth* (*copy)(struct PDSynth* synth);
 };
 
+struct playdate_sound_channel {
+    SoundChannel* (*newChannel)(void);
+    void (*freeChannel)(SoundChannel* channel);
+    int (*addSource)(SoundChannel* channel, SoundSource* source);
+    int (*removeSource)(SoundChannel* channel, SoundSource* source);
+    void* addCallbackSource;
+    void* addEffect;
+    void* removeEffect;
+    void (*setVolume)(SoundChannel* channel, float volume);
+    float (*getVolume)(SoundChannel* channel);
+    void* setVolumeModulator;
+    void* getVolumeModulator;
+    void (*setPan)(SoundChannel* channel, float pan);
+    void* setPanModulator;
+    void* getPanModulator;
+    void* getDryLevelSignal;
+    void* getWetLevelSignal;
+};
+
+struct playdate_sound_sequence {
+    SoundSequence* (*newSequence)(void);
+    void (*freeSequence)(SoundSequence* sequence);
+    int (*loadMIDIFile)(SoundSequence* seq, const char* path);
+    uint32_t (*getTime)(SoundSequence* seq);
+    void (*setTime)(SoundSequence* seq, uint32_t time);
+    void (*setLoops)(SoundSequence* seq, int loopstart, int loopend, int loops);
+    int (*getTempo)(SoundSequence* seq);
+    void (*setTempo)(SoundSequence* seq, float stepsPerSecond);
+    int (*getTrackCount)(SoundSequence* seq);
+    SequenceTrack* (*addTrack)(SoundSequence* seq);
+    SequenceTrack* (*getTrackAtIndex)(SoundSequence* seq, unsigned int idx);
+    void (*setTrackAtIndex)(SoundSequence* seq, SequenceTrack* track, unsigned int idx);
+    void (*allNotesOff)(SoundSequence* seq);
+    int (*isPlaying)(SoundSequence* seq);
+    uint32_t (*getLength)(SoundSequence* seq);
+    void (*play)(SoundSequence* seq, void* finishCallback, void* userdata);
+    void (*stop)(SoundSequence* seq);
+    int (*getCurrentStep)(SoundSequence* seq, int* timeOffset);
+    void (*setCurrentStep)(SoundSequence* seq, int step, int timeOffset, int playNotes);
+};
+
+struct playdate_sound_track {
+    SequenceTrack* (*newTrack)(void);
+    void (*freeTrack)(SequenceTrack* track);
+    void (*setInstrument)(SequenceTrack* track, PDSynthInstrument* inst);
+    PDSynthInstrument* (*getInstrument)(SequenceTrack* track);
+    void (*addNoteEvent)(SequenceTrack* track, uint32_t step, uint32_t len, MIDINote note, float velocity);
+    void (*removeNoteEvent)(SequenceTrack* track, uint32_t step, MIDINote note);
+    void (*clearNotes)(SequenceTrack* track);
+    int (*getControlSignalCount)(SequenceTrack* track);
+    void* (*getControlSignal)(SequenceTrack* track, int idx);
+    void (*clearControlEvents)(SequenceTrack* track);
+    int (*getPolyphony)(SequenceTrack* track);
+    int (*activeVoiceCount)(SequenceTrack* track);
+    void (*setMuted)(SequenceTrack* track, int mute);
+    uint32_t (*getLength)(SequenceTrack* track);
+    int (*getIndexForStep)(SequenceTrack* track, uint32_t step);
+    int (*getNoteAtIndex)(SequenceTrack* track, int index, uint32_t* outStep, uint32_t* outLen, MIDINote* outNote, float* outVelocity);
+    void* (*getSignalForController)(SequenceTrack* track, int controller, int create);
+};
+
+struct playdate_sound_instrument {
+    PDSynthInstrument* (*newInstrument)(void);
+    void (*freeInstrument)(PDSynthInstrument* inst);
+    int (*addVoice)(PDSynthInstrument* inst, struct PDSynth* synth, MIDINote rangeStart, MIDINote rangeEnd, float transpose);
+    struct PDSynth* (*playNote)(PDSynthInstrument* inst, float frequency, float vel, float len, uint32_t when);
+    struct PDSynth* (*playMIDINote)(PDSynthInstrument* inst, MIDINote note, float vel, float len, uint32_t when);
+    void (*setPitchBend)(PDSynthInstrument* inst, float bend);
+    void (*setPitchBendRange)(PDSynthInstrument* inst, float halfSteps);
+    void (*setTranspose)(PDSynthInstrument* inst, float halfSteps);
+    void (*noteOff)(PDSynthInstrument* inst, MIDINote note, uint32_t when);
+    void (*allNotesOff)(PDSynthInstrument* inst, uint32_t when);
+    void (*setVolume)(PDSynthInstrument* inst, float left, float right);
+    void (*getVolume)(PDSynthInstrument* inst, float* left, float* right);
+    int (*activeVoiceCount)(PDSynthInstrument* inst);
+};
+
 struct playdate_sound {
-    void* channel;
+    const struct playdate_sound_channel* channel;
     const struct playdate_sound_fileplayer* fileplayer;
     const struct playdate_sound_sample* sample;
     const struct playdate_sound_sampleplayer* sampleplayer;
     const struct playdate_sound_synth* synth;
-    void* sequence;
+    const struct playdate_sound_sequence* sequence;
     void* effect;
     void* lfo;
     void* envelope;
     void* source;
     void* controlsignal;
-    void* track;
-    void* instrument;
+    const struct playdate_sound_track* track;
+    const struct playdate_sound_instrument* instrument;
     uint32_t (*getCurrentTime)(void);
     void* (*addSource)(void* callback, void* context, int stereo);
-    void* getDefaultChannel;
-    void* addChannel;
-    void* removeChannel;
+    SoundChannel* (*getDefaultChannel)(void);
+    int (*addChannel)(SoundChannel* channel);
+    int (*removeChannel)(SoundChannel* channel);
     void* setMicCallback;
     void (*getHeadphoneState)(int* headphone, int* headsetmic, void (*changeCallback)(int headphone, int mic));
     void (*setOutputsActive)(int headphone, int speaker);
-    void* removeSource;
+    int (*removeSource)(SoundSource* source);
     void* signal;
+    const char* (*getError)(void);
 };
 
 // ============== Main API ==============
@@ -447,6 +537,7 @@ uint8_t* pd_gfx_getFrame(void) { return pd ? pd->graphics->getFrame() : 0; }
 uint8_t* pd_gfx_getDisplayFrame(void) { return pd ? pd->graphics->getDisplayFrame() : 0; }
 void pd_gfx_markUpdatedRows(int start, int end) { if (pd) pd->graphics->markUpdatedRows(start, end); }
 void pd_gfx_display(void) { if (pd) pd->graphics->display(); }
+struct LCDBitmap* pd_gfx_getDisplayBufferBitmap(void) { return pd ? pd->graphics->getDisplayBufferBitmap() : 0; }
 
 // ============== Display API Wrappers ==============
 int pd_display_getWidth(void) { return pd ? pd->display->getWidth() : 400; }
@@ -599,6 +690,33 @@ void pd_sound_synth_stop(struct PDSynth* s) { if (pd && pd->sound && pd->sound->
 void pd_sound_synth_setVolume(struct PDSynth* s, float l, float r) { if (pd && pd->sound && pd->sound->synth && s) pd->sound->synth->setVolume(s, l, r); }
 void pd_sound_synth_getVolume(struct PDSynth* s, float* l, float* r) { if (pd && pd->sound && pd->sound->synth && s) pd->sound->synth->getVolume(s, l, r); }
 int pd_sound_synth_isPlaying(struct PDSynth* s) { return pd && pd->sound && pd->sound->synth && s ? pd->sound->synth->isPlaying(s) : 0; }
+void pd_sound_synth_setSample(struct PDSynth* s, struct AudioSample* sample, uint32_t sustainStart, uint32_t sustainEnd) { if (pd && pd->sound && pd->sound->synth && s) pd->sound->synth->setSample(s, sample, sustainStart, sustainEnd); }
+struct PDSynth* pd_sound_synth_copy(struct PDSynth* s) { return pd && pd->sound && pd->sound->synth && s ? pd->sound->synth->copy(s) : 0; }
+
+// ============== Channel API Wrappers ==============
+SoundChannel* pd_sound_getDefaultChannel(void) { return pd && pd->sound ? pd->sound->getDefaultChannel() : 0; }
+int pd_sound_channel_addSource(SoundChannel* channel, SoundSource* source) { return pd && pd->sound && pd->sound->channel && channel ? pd->sound->channel->addSource(channel, source) : 0; }
+int pd_sound_channel_addInstrument(SoundChannel* channel, PDSynthInstrument* inst) { return pd && pd->sound && pd->sound->channel && channel && inst ? pd->sound->channel->addSource(channel, (SoundSource*)inst) : 0; }
+
+// ============== Sequence API Wrappers ==============
+SoundSequence* pd_sound_sequence_new(void) { return pd && pd->sound && pd->sound->sequence ? pd->sound->sequence->newSequence() : 0; }
+int pd_sound_sequence_loadMIDI(SoundSequence* seq, const char* path) { return pd && pd->sound && pd->sound->sequence && seq ? pd->sound->sequence->loadMIDIFile(seq, path) : 0; }
+int pd_sound_sequence_getTrackCount(SoundSequence* seq) { return pd && pd->sound && pd->sound->sequence && seq ? pd->sound->sequence->getTrackCount(seq) : 0; }
+SequenceTrack* pd_sound_sequence_getTrackAtIndex(SoundSequence* seq, unsigned int idx) { return pd && pd->sound && pd->sound->sequence && seq ? pd->sound->sequence->getTrackAtIndex(seq, idx) : 0; }
+void pd_sound_sequence_play(SoundSequence* seq) { if (pd && pd->sound && pd->sound->sequence && seq) pd->sound->sequence->play(seq, 0, 0); }
+void pd_sound_sequence_stop(SoundSequence* seq) { if (pd && pd->sound && pd->sound->sequence && seq) pd->sound->sequence->stop(seq); }
+int pd_sound_sequence_getCurrentStep(SoundSequence* seq) { return pd && pd->sound && pd->sound->sequence && seq ? pd->sound->sequence->getCurrentStep(seq, 0) : 0; }
+
+// ============== Track API Wrappers ==============
+void pd_sound_track_setInstrument(SequenceTrack* track, PDSynthInstrument* inst) { if (pd && pd->sound && pd->sound->track && track) pd->sound->track->setInstrument(track, inst); }
+int pd_sound_track_getPolyphony(SequenceTrack* track) { return pd && pd->sound && pd->sound->track && track ? pd->sound->track->getPolyphony(track) : 0; }
+int pd_sound_track_getIndexForStep(SequenceTrack* track, uint32_t step) { return pd && pd->sound && pd->sound->track && track ? pd->sound->track->getIndexForStep(track, step) : 0; }
+int pd_sound_track_getNoteAtIndex(SequenceTrack* track, int index, uint32_t* outStep, uint32_t* outLen, float* outNote, float* outVel) { return pd && pd->sound && pd->sound->track && track ? pd->sound->track->getNoteAtIndex(track, index, outStep, outLen, (MIDINote*)outNote, outVel) : 0; }
+
+// ============== Instrument API Wrappers ==============
+PDSynthInstrument* pd_sound_instrument_new(void) { return pd && pd->sound && pd->sound->instrument ? pd->sound->instrument->newInstrument() : 0; }
+void pd_sound_instrument_setVolume(PDSynthInstrument* inst, float left, float right) { if (pd && pd->sound && pd->sound->instrument && inst) pd->sound->instrument->setVolume(inst, left, right); }
+int pd_sound_instrument_addVoice(PDSynthInstrument* inst, struct PDSynth* synth, float rangeStart, float rangeEnd, float transpose) { return pd && pd->sound && pd->sound->instrument && inst ? pd->sound->instrument->addVoice(inst, synth, (MIDINote)rangeStart, (MIDINote)rangeEnd, transpose) : 0; }
 
 // ============== Event Handler ==============
 extern int updateCallback(void* userdata);

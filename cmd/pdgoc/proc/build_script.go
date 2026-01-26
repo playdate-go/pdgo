@@ -84,7 +84,7 @@ cat > "$TINYGO_DIR/targets/playdate.json" << EOF
     "scheduler": "none",
     "serial": "none",
     "automatic-stack-size": false,
-    "default-stack-size": 61800,
+    "default-stack-size": 131072,
     "linkerscript": "$BUILD_DIR/playdate.ld",
     "cflags": ["-DTARGET_PLAYDATE=1", "-mfloat-abi=hard", "-mfpu=fpv5-sp-d16"],
     "ldflags": ["-L$BUILD_DIR", "-lpd"]

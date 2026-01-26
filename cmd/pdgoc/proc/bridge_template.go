@@ -186,6 +186,9 @@ func gfxMarkUpdatedRows(start, end int32)
 //go:linkname gfxDisplay pd_gfx_display
 func gfxDisplay()
 
+//go:linkname gfxGetDisplayBufferBitmap pd_gfx_getDisplayBufferBitmap
+func gfxGetDisplayBufferBitmap() uintptr
+
 // ============== Display Functions ==============
 
 //go:linkname displayGetWidth pd_display_getWidth
@@ -521,6 +524,71 @@ func soundSynthGetVolume(synth uintptr, left, right *float32)
 //go:linkname soundSynthIsPlaying pd_sound_synth_isPlaying
 func soundSynthIsPlaying(synth uintptr) int32
 
+//go:linkname soundSynthSetSample pd_sound_synth_setSample
+func soundSynthSetSample(synth, sample uintptr, sustainStart, sustainEnd uint32)
+
+//go:linkname soundSynthCopy pd_sound_synth_copy
+func soundSynthCopy(synth uintptr) uintptr
+
+// ============== Sound - Channel Functions ==============
+
+//go:linkname soundGetDefaultChannel pd_sound_getDefaultChannel
+func soundGetDefaultChannel() uintptr
+
+//go:linkname soundChannelAddSource pd_sound_channel_addSource
+func soundChannelAddSource(channel, source uintptr) int32
+
+//go:linkname soundChannelAddInstrument pd_sound_channel_addInstrument
+func soundChannelAddInstrument(channel, inst uintptr) int32
+
+// ============== Sound - Sequence Functions ==============
+
+//go:linkname soundSequenceNew pd_sound_sequence_new
+func soundSequenceNew() uintptr
+
+//go:linkname soundSequenceLoadMIDI pd_sound_sequence_loadMIDI
+func soundSequenceLoadMIDI(seq uintptr, path *byte) int32
+
+//go:linkname soundSequenceGetTrackCount pd_sound_sequence_getTrackCount
+func soundSequenceGetTrackCount(seq uintptr) int32
+
+//go:linkname soundSequenceGetTrackAtIndex pd_sound_sequence_getTrackAtIndex
+func soundSequenceGetTrackAtIndex(seq uintptr, idx uint32) uintptr
+
+//go:linkname soundSequencePlay pd_sound_sequence_play
+func soundSequencePlay(seq uintptr)
+
+//go:linkname soundSequenceStop pd_sound_sequence_stop
+func soundSequenceStop(seq uintptr)
+
+//go:linkname soundSequenceGetCurrentStep pd_sound_sequence_getCurrentStep
+func soundSequenceGetCurrentStep(seq uintptr) int32
+
+// ============== Sound - Track Functions ==============
+
+//go:linkname soundTrackSetInstrument pd_sound_track_setInstrument
+func soundTrackSetInstrument(track, inst uintptr)
+
+//go:linkname soundTrackGetPolyphony pd_sound_track_getPolyphony
+func soundTrackGetPolyphony(track uintptr) int32
+
+//go:linkname soundTrackGetIndexForStep pd_sound_track_getIndexForStep
+func soundTrackGetIndexForStep(track uintptr, step uint32) int32
+
+//go:linkname soundTrackGetNoteAtIndex pd_sound_track_getNoteAtIndex
+func soundTrackGetNoteAtIndex(track uintptr, index int32, outStep, outLen *uint32, outNote, outVel *float32) int32
+
+// ============== Sound - Instrument Functions ==============
+
+//go:linkname soundInstrumentNew pd_sound_instrument_new
+func soundInstrumentNew() uintptr
+
+//go:linkname soundInstrumentSetVolume pd_sound_instrument_setVolume
+func soundInstrumentSetVolume(inst uintptr, left, right float32)
+
+//go:linkname soundInstrumentAddVoice pd_sound_instrument_addVoice
+func soundInstrumentAddVoice(inst, synth uintptr, rangeStart, rangeEnd, transpose float32) int32
+
 // ============== Register Bridge ==============
 
 func init() {
@@ -579,10 +647,11 @@ func init() {
 		GfxLoadBitmapTable:    gfxLoadBitmapTable,
 		GfxGetTableBitmap:     gfxGetTableBitmap,
 		GfxLoadFont:           gfxLoadFont,
-		GfxGetFrame:           gfxGetFrame,
-		GfxGetDisplayFrame:    gfxGetDisplayFrame,
-		GfxMarkUpdatedRows:    gfxMarkUpdatedRows,
-		GfxDisplay:            gfxDisplay,
+		GfxGetFrame:              gfxGetFrame,
+		GfxGetDisplayFrame:       gfxGetDisplayFrame,
+		GfxMarkUpdatedRows:       gfxMarkUpdatedRows,
+		GfxDisplay:               gfxDisplay,
+		GfxGetDisplayBufferBitmap: gfxGetDisplayBufferBitmap,
 
 		// Display
 		DisplayGetWidth:       displayGetWidth,
@@ -701,5 +770,32 @@ func init() {
 		SoundSynthSetVolume:    soundSynthSetVolume,
 		SoundSynthGetVolume:    soundSynthGetVolume,
 		SoundSynthIsPlaying:    soundSynthIsPlaying,
+		SoundSynthSetSample:    soundSynthSetSample,
+		SoundSynthCopy:         soundSynthCopy,
+
+		// Sound - Channel
+		SoundGetDefaultChannel:    soundGetDefaultChannel,
+		SoundChannelAddSource:     soundChannelAddSource,
+		SoundChannelAddInstrument: soundChannelAddInstrument,
+
+		// Sound - Sequence
+		SoundSequenceNew:             soundSequenceNew,
+		SoundSequenceLoadMIDI:        soundSequenceLoadMIDI,
+		SoundSequenceGetTrackCount:   soundSequenceGetTrackCount,
+		SoundSequenceGetTrackAtIndex: soundSequenceGetTrackAtIndex,
+		SoundSequencePlay:            soundSequencePlay,
+		SoundSequenceStop:            soundSequenceStop,
+		SoundSequenceGetCurrentStep:  soundSequenceGetCurrentStep,
+
+		// Sound - Track
+		SoundTrackSetInstrument:   soundTrackSetInstrument,
+		SoundTrackGetPolyphony:    soundTrackGetPolyphony,
+		SoundTrackGetIndexForStep: soundTrackGetIndexForStep,
+		SoundTrackGetNoteAtIndex:  soundTrackGetNoteAtIndex,
+
+		// Sound - Instrument
+		SoundInstrumentNew:       soundInstrumentNew,
+		SoundInstrumentSetVolume: soundInstrumentSetVolume,
+		SoundInstrumentAddVoice:  soundInstrumentAddVoice,
 	})
 }`

@@ -39,6 +39,26 @@ type SoundEffect struct {
 	ptr uintptr
 }
 
+// SoundSequence represents a sound sequence
+type SoundSequence struct {
+	ptr uintptr
+}
+
+// SequenceTrack represents a track in a sequence
+type SequenceTrack struct {
+	ptr uintptr
+}
+
+// PDSynthInstrument represents a synth instrument
+type PDSynthInstrument struct {
+	ptr uintptr
+}
+
+// ControlSignal represents a control signal
+type ControlSignal struct {
+	ptr uintptr
+}
+
 // SoundWaveform represents synth waveforms
 type SoundWaveform int32
 
@@ -58,13 +78,34 @@ type MIDINote float32
 
 // Sound provides access to sound functions
 type Sound struct {
-	Synth *SynthAPI
+	Channel    *ChannelAPI
+	Sample     *SampleAPI
+	Synth      *SynthAPI
+	Sequence   *SequenceAPI
+	Track      *TrackAPI
+	Instrument *InstrumentAPI
 }
 
 func newSound() *Sound {
 	return &Sound{
-		Synth: &SynthAPI{},
+		Channel:    &ChannelAPI{},
+		Sample:     &SampleAPI{},
+		Synth:      &SynthAPI{},
+		Sequence:   &SequenceAPI{},
+		Track:      &TrackAPI{},
+		Instrument: &InstrumentAPI{},
 	}
+}
+
+// GetDefaultChannel returns the default sound channel
+func (s *Sound) GetDefaultChannel() *SoundChannel {
+	if bridgeSoundGetDefaultChannel != nil {
+		ptr := bridgeSoundGetDefaultChannel()
+		if ptr != 0 {
+			return &SoundChannel{ptr: ptr}
+		}
+	}
+	return nil
 }
 
 // SynthAPI wraps synth functions
@@ -178,6 +219,205 @@ func (sy *SynthAPI) GetVolume(synth *PDSynth) (left, right float32) {
 func (sy *SynthAPI) IsPlaying(synth *PDSynth) bool {
 	if bridgeSoundSynthIsPlaying != nil && synth != nil && synth.ptr != 0 {
 		return bridgeSoundSynthIsPlaying(synth.ptr) != 0
+	}
+	return false
+}
+
+// SetSample sets the sample for the synth
+func (sy *SynthAPI) SetSample(synth *PDSynth, sample *AudioSample, sustainStart, sustainEnd uint32) {
+	if bridgeSoundSynthSetSample != nil && synth != nil && synth.ptr != 0 {
+		var samplePtr uintptr
+		if sample != nil {
+			samplePtr = sample.ptr
+		}
+		bridgeSoundSynthSetSample(synth.ptr, samplePtr, sustainStart, sustainEnd)
+	}
+}
+
+// Copy copies a synth
+func (sy *SynthAPI) Copy(synth *PDSynth) *PDSynth {
+	if bridgeSoundSynthCopy != nil && synth != nil && synth.ptr != 0 {
+		ptr := bridgeSoundSynthCopy(synth.ptr)
+		if ptr != 0 {
+			return &PDSynth{ptr: ptr}
+		}
+	}
+	return nil
+}
+
+// ============== ChannelAPI ==============
+
+// ChannelAPI wraps channel functions
+type ChannelAPI struct{}
+
+// AddInstrumentAsSource adds an instrument as a source to a channel
+func (c *ChannelAPI) AddInstrumentAsSource(channel *SoundChannel, inst *PDSynthInstrument) bool {
+	if bridgeSoundChannelAddInstrument != nil && channel != nil && channel.ptr != 0 && inst != nil && inst.ptr != 0 {
+		return bridgeSoundChannelAddInstrument(channel.ptr, inst.ptr) != 0
+	}
+	return false
+}
+
+// ============== SampleAPI ==============
+
+// SampleAPI wraps sample functions
+type SampleAPI struct{}
+
+// Load loads an audio sample from file
+func (sa *SampleAPI) Load(path string) *AudioSample {
+	if bridgeSoundLoadSample != nil {
+		buf := make([]byte, len(path)+1)
+		copy(buf, path)
+		ptr := bridgeSoundLoadSample(&buf[0])
+		if ptr != 0 {
+			return &AudioSample{ptr: ptr}
+		}
+	}
+	return nil
+}
+
+// ============== SequenceAPI ==============
+
+// SequenceAPI wraps sequence functions
+type SequenceAPI struct{}
+
+// NewSequence creates a new sequence
+func (s *SequenceAPI) NewSequence() *SoundSequence {
+	if bridgeSoundSequenceNew != nil {
+		ptr := bridgeSoundSequenceNew()
+		if ptr != 0 {
+			return &SoundSequence{ptr: ptr}
+		}
+	}
+	return nil
+}
+
+// LoadMIDIFile loads a MIDI file into the sequence
+func (s *SequenceAPI) LoadMIDIFile(seq *SoundSequence, path string) error {
+	if bridgeSoundSequenceLoadMIDI != nil && seq != nil && seq.ptr != 0 {
+		buf := make([]byte, len(path)+1)
+		copy(buf, path)
+		if bridgeSoundSequenceLoadMIDI(seq.ptr, &buf[0]) != 0 {
+			return nil
+		}
+	}
+	return &soundError{op: "loadMIDI", path: path}
+}
+
+// GetTrackCount returns the track count
+func (s *SequenceAPI) GetTrackCount(seq *SoundSequence) int {
+	if bridgeSoundSequenceGetTrackCount != nil && seq != nil && seq.ptr != 0 {
+		return int(bridgeSoundSequenceGetTrackCount(seq.ptr))
+	}
+	return 0
+}
+
+// GetTrackAtIndex returns a track at an index
+func (s *SequenceAPI) GetTrackAtIndex(seq *SoundSequence, index uint) *SequenceTrack {
+	if bridgeSoundSequenceGetTrackAtIndex != nil && seq != nil && seq.ptr != 0 {
+		ptr := bridgeSoundSequenceGetTrackAtIndex(seq.ptr, uint32(index))
+		if ptr != 0 {
+			return &SequenceTrack{ptr: ptr}
+		}
+	}
+	return nil
+}
+
+// Play plays the sequence
+func (s *SequenceAPI) Play(seq *SoundSequence) {
+	if bridgeSoundSequencePlay != nil && seq != nil && seq.ptr != 0 {
+		bridgeSoundSequencePlay(seq.ptr)
+	}
+}
+
+// Stop stops the sequence
+func (s *SequenceAPI) Stop(seq *SoundSequence) {
+	if bridgeSoundSequenceStop != nil && seq != nil && seq.ptr != 0 {
+		bridgeSoundSequenceStop(seq.ptr)
+	}
+}
+
+// GetCurrentStep returns the current step in the sequence
+func (s *SequenceAPI) GetCurrentStep(seq *SoundSequence) int {
+	if bridgeSoundSequenceGetCurrentStep != nil && seq != nil && seq.ptr != 0 {
+		return int(bridgeSoundSequenceGetCurrentStep(seq.ptr))
+	}
+	return 0
+}
+
+// ============== TrackAPI ==============
+
+// TrackAPI wraps track functions
+type TrackAPI struct{}
+
+// SetInstrument sets the instrument for a track
+func (t *TrackAPI) SetInstrument(track *SequenceTrack, inst *PDSynthInstrument) {
+	if bridgeSoundTrackSetInstrument != nil && track != nil && track.ptr != 0 {
+		var instPtr uintptr
+		if inst != nil {
+			instPtr = inst.ptr
+		}
+		bridgeSoundTrackSetInstrument(track.ptr, instPtr)
+	}
+}
+
+// GetPolyphony returns the maximum polyphony for the track
+func (t *TrackAPI) GetPolyphony(track *SequenceTrack) int {
+	if bridgeSoundTrackGetPolyphony != nil && track != nil && track.ptr != 0 {
+		return int(bridgeSoundTrackGetPolyphony(track.ptr))
+	}
+	return 0
+}
+
+// GetIndexForStep returns the internal index for the step
+func (t *TrackAPI) GetIndexForStep(track *SequenceTrack, step uint32) int {
+	if bridgeSoundTrackGetIndexForStep != nil && track != nil && track.ptr != 0 {
+		return int(bridgeSoundTrackGetIndexForStep(track.ptr, step))
+	}
+	return 0
+}
+
+// GetNoteAtIndex returns note information at the given index
+func (t *TrackAPI) GetNoteAtIndex(track *SequenceTrack, index int) (step, length uint32, note MIDINote, velocity float32, ok bool) {
+	if bridgeSoundTrackGetNoteAtIndex != nil && track != nil && track.ptr != 0 {
+		var s, l uint32
+		var n float32
+		var v float32
+		result := bridgeSoundTrackGetNoteAtIndex(track.ptr, int32(index), &s, &l, &n, &v)
+		if result != 0 {
+			return s, l, MIDINote(n), v, true
+		}
+	}
+	return 0, 0, 0, 0, false
+}
+
+// ============== InstrumentAPI ==============
+
+// InstrumentAPI wraps instrument functions
+type InstrumentAPI struct{}
+
+// NewInstrument creates a new instrument
+func (i *InstrumentAPI) NewInstrument() *PDSynthInstrument {
+	if bridgeSoundInstrumentNew != nil {
+		ptr := bridgeSoundInstrumentNew()
+		if ptr != 0 {
+			return &PDSynthInstrument{ptr: ptr}
+		}
+	}
+	return nil
+}
+
+// SetVolume sets the instrument volume
+func (i *InstrumentAPI) SetVolume(inst *PDSynthInstrument, left, right float32) {
+	if bridgeSoundInstrumentSetVolume != nil && inst != nil && inst.ptr != 0 {
+		bridgeSoundInstrumentSetVolume(inst.ptr, left, right)
+	}
+}
+
+// AddVoice adds a voice to the instrument
+func (i *InstrumentAPI) AddVoice(inst *PDSynthInstrument, synth *PDSynth, rangeStart, rangeEnd MIDINote, transpose float32) bool {
+	if bridgeSoundInstrumentAddVoice != nil && inst != nil && inst.ptr != 0 && synth != nil && synth.ptr != 0 {
+		return bridgeSoundInstrumentAddVoice(inst.ptr, synth.ptr, float32(rangeStart), float32(rangeEnd), transpose) != 0
 	}
 	return false
 }

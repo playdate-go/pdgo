@@ -385,6 +385,17 @@ func (g *Graphics) Display() {
 	}
 }
 
+// GetDisplayBufferBitmap returns the display buffer as a bitmap
+func (g *Graphics) GetDisplayBufferBitmap() *LCDBitmap {
+	if bridgeGfxGetDisplayBufferBitmap != nil {
+		ptr := bridgeGfxGetDisplayBufferBitmap()
+		if ptr != 0 {
+			return &LCDBitmap{ptr: ptr}
+		}
+	}
+	return nil
+}
+
 // loadError represents a load error
 type loadError struct {
 	path string

@@ -81,10 +81,11 @@ var (
 	bridgeGfxLoadFont func(*byte) uintptr
 
 	// Frame
-	bridgeGfxGetFrame        func() uintptr
-	bridgeGfxGetDisplayFrame func() uintptr
-	bridgeGfxMarkUpdatedRows func(int32, int32)
-	bridgeGfxDisplay         func()
+	bridgeGfxGetFrame               func() uintptr
+	bridgeGfxGetDisplayFrame        func() uintptr
+	bridgeGfxMarkUpdatedRows        func(int32, int32)
+	bridgeGfxDisplay                func()
+	bridgeGfxGetDisplayBufferBitmap func() uintptr
 )
 
 // ============== Display Bridge ==============
@@ -216,6 +217,33 @@ var (
 	bridgeSoundSynthSetVolume    func(uintptr, float32, float32)
 	bridgeSoundSynthGetVolume    func(uintptr, *float32, *float32)
 	bridgeSoundSynthIsPlaying    func(uintptr) int32
+	bridgeSoundSynthSetSample    func(uintptr, uintptr, uint32, uint32)
+	bridgeSoundSynthCopy         func(uintptr) uintptr
+
+	// Channel
+	bridgeSoundGetDefaultChannel    func() uintptr
+	bridgeSoundChannelAddSource     func(uintptr, uintptr) int32
+	bridgeSoundChannelAddInstrument func(uintptr, uintptr) int32
+
+	// Sequence
+	bridgeSoundSequenceNew             func() uintptr
+	bridgeSoundSequenceLoadMIDI        func(uintptr, *byte) int32
+	bridgeSoundSequenceGetTrackCount   func(uintptr) int32
+	bridgeSoundSequenceGetTrackAtIndex func(uintptr, uint32) uintptr
+	bridgeSoundSequencePlay            func(uintptr)
+	bridgeSoundSequenceStop            func(uintptr)
+	bridgeSoundSequenceGetCurrentStep  func(uintptr) int32
+
+	// Track
+	bridgeSoundTrackSetInstrument   func(uintptr, uintptr)
+	bridgeSoundTrackGetPolyphony    func(uintptr) int32
+	bridgeSoundTrackGetIndexForStep func(uintptr, uint32) int32
+	bridgeSoundTrackGetNoteAtIndex  func(uintptr, int32, *uint32, *uint32, *float32, *float32) int32
+
+	// Instrument
+	bridgeSoundInstrumentNew       func() uintptr
+	bridgeSoundInstrumentSetVolume func(uintptr, float32, float32)
+	bridgeSoundInstrumentAddVoice  func(uintptr, uintptr, float32, float32, float32) int32
 )
 
 // ============== Lua Bridge ==============
@@ -275,44 +303,45 @@ type Bridge struct {
 	SysGetBatteryVoltage      func() float32
 
 	// Graphics
-	GfxClear              func(uint32)
-	GfxSetBackgroundColor func(int32)
-	GfxSetDrawMode        func(int32) int32
-	GfxSetDrawOffset      func(int32, int32)
-	GfxSetClipRect        func(int32, int32, int32, int32)
-	GfxClearClipRect      func()
-	GfxSetLineCapStyle    func(int32)
-	GfxSetFont            func(uintptr)
-	GfxSetTextTracking    func(int32)
-	GfxPushContext        func(uintptr)
-	GfxPopContext         func()
-	GfxFillRect           func(int32, int32, int32, int32, uint32)
-	GfxDrawRect           func(int32, int32, int32, int32, uint32)
-	GfxDrawLine           func(int32, int32, int32, int32, int32, uint32)
-	GfxFillTriangle       func(int32, int32, int32, int32, int32, int32, uint32)
-	GfxDrawEllipse        func(int32, int32, int32, int32, int32, float32, float32, uint32)
-	GfxFillEllipse        func(int32, int32, int32, int32, float32, float32, uint32)
-	GfxDrawText           func(*byte, int32, int32, int32, int32) int32
-	GfxGetTextWidth       func(uintptr, *byte, int32, int32, int32) int32
-	GfxNewBitmap          func(int32, int32, uint32) uintptr
-	GfxFreeBitmap         func(uintptr)
-	GfxLoadBitmap         func(*byte) uintptr
-	GfxCopyBitmap         func(uintptr) uintptr
-	GfxDrawBitmap         func(uintptr, int32, int32, int32)
-	GfxTileBitmap         func(uintptr, int32, int32, int32, int32, int32)
-	GfxDrawScaledBitmap   func(uintptr, int32, int32, float32, float32)
-	GfxDrawRotatedBitmap  func(uintptr, int32, int32, float32, float32, float32, float32, float32)
-	GfxGetBitmapData      func(uintptr, *int32, *int32, *int32, *uintptr, *uintptr)
-	GfxClearBitmap        func(uintptr, uint32)
-	GfxNewBitmapTable     func(int32, int32, int32) uintptr
-	GfxFreeBitmapTable    func(uintptr)
-	GfxLoadBitmapTable    func(*byte) uintptr
-	GfxGetTableBitmap     func(uintptr, int32) uintptr
-	GfxLoadFont           func(*byte) uintptr
-	GfxGetFrame           func() uintptr
-	GfxGetDisplayFrame    func() uintptr
-	GfxMarkUpdatedRows    func(int32, int32)
-	GfxDisplay            func()
+	GfxClear                  func(uint32)
+	GfxSetBackgroundColor     func(int32)
+	GfxSetDrawMode            func(int32) int32
+	GfxSetDrawOffset          func(int32, int32)
+	GfxSetClipRect            func(int32, int32, int32, int32)
+	GfxClearClipRect          func()
+	GfxSetLineCapStyle        func(int32)
+	GfxSetFont                func(uintptr)
+	GfxSetTextTracking        func(int32)
+	GfxPushContext            func(uintptr)
+	GfxPopContext             func()
+	GfxFillRect               func(int32, int32, int32, int32, uint32)
+	GfxDrawRect               func(int32, int32, int32, int32, uint32)
+	GfxDrawLine               func(int32, int32, int32, int32, int32, uint32)
+	GfxFillTriangle           func(int32, int32, int32, int32, int32, int32, uint32)
+	GfxDrawEllipse            func(int32, int32, int32, int32, int32, float32, float32, uint32)
+	GfxFillEllipse            func(int32, int32, int32, int32, float32, float32, uint32)
+	GfxDrawText               func(*byte, int32, int32, int32, int32) int32
+	GfxGetTextWidth           func(uintptr, *byte, int32, int32, int32) int32
+	GfxNewBitmap              func(int32, int32, uint32) uintptr
+	GfxFreeBitmap             func(uintptr)
+	GfxLoadBitmap             func(*byte) uintptr
+	GfxCopyBitmap             func(uintptr) uintptr
+	GfxDrawBitmap             func(uintptr, int32, int32, int32)
+	GfxTileBitmap             func(uintptr, int32, int32, int32, int32, int32)
+	GfxDrawScaledBitmap       func(uintptr, int32, int32, float32, float32)
+	GfxDrawRotatedBitmap      func(uintptr, int32, int32, float32, float32, float32, float32, float32)
+	GfxGetBitmapData          func(uintptr, *int32, *int32, *int32, *uintptr, *uintptr)
+	GfxClearBitmap            func(uintptr, uint32)
+	GfxNewBitmapTable         func(int32, int32, int32) uintptr
+	GfxFreeBitmapTable        func(uintptr)
+	GfxLoadBitmapTable        func(*byte) uintptr
+	GfxGetTableBitmap         func(uintptr, int32) uintptr
+	GfxLoadFont               func(*byte) uintptr
+	GfxGetFrame               func() uintptr
+	GfxGetDisplayFrame        func() uintptr
+	GfxMarkUpdatedRows        func(int32, int32)
+	GfxDisplay                func()
+	GfxGetDisplayBufferBitmap func() uintptr
 
 	// Display
 	DisplayGetWidth       func() int32
@@ -431,6 +460,33 @@ type Bridge struct {
 	SoundSynthSetVolume    func(uintptr, float32, float32)
 	SoundSynthGetVolume    func(uintptr, *float32, *float32)
 	SoundSynthIsPlaying    func(uintptr) int32
+	SoundSynthSetSample    func(uintptr, uintptr, uint32, uint32)
+	SoundSynthCopy         func(uintptr) uintptr
+
+	// Sound - Channel
+	SoundGetDefaultChannel    func() uintptr
+	SoundChannelAddSource     func(uintptr, uintptr) int32
+	SoundChannelAddInstrument func(uintptr, uintptr) int32
+
+	// Sound - Sequence
+	SoundSequenceNew             func() uintptr
+	SoundSequenceLoadMIDI        func(uintptr, *byte) int32
+	SoundSequenceGetTrackCount   func(uintptr) int32
+	SoundSequenceGetTrackAtIndex func(uintptr, uint32) uintptr
+	SoundSequencePlay            func(uintptr)
+	SoundSequenceStop            func(uintptr)
+	SoundSequenceGetCurrentStep  func(uintptr) int32
+
+	// Sound - Track
+	SoundTrackSetInstrument   func(uintptr, uintptr)
+	SoundTrackGetPolyphony    func(uintptr) int32
+	SoundTrackGetIndexForStep func(uintptr, uint32) int32
+	SoundTrackGetNoteAtIndex  func(uintptr, int32, *uint32, *uint32, *float32, *float32) int32
+
+	// Sound - Instrument
+	SoundInstrumentNew       func() uintptr
+	SoundInstrumentSetVolume func(uintptr, float32, float32)
+	SoundInstrumentAddVoice  func(uintptr, uintptr, float32, float32, float32) int32
 
 	// Lua
 	LuaGetArgCount  func() int32
@@ -517,6 +573,7 @@ func RegisterBridge(b Bridge) {
 	bridgeGfxGetDisplayFrame = b.GfxGetDisplayFrame
 	bridgeGfxMarkUpdatedRows = b.GfxMarkUpdatedRows
 	bridgeGfxDisplay = b.GfxDisplay
+	bridgeGfxGetDisplayBufferBitmap = b.GfxGetDisplayBufferBitmap
 
 	// Display
 	bridgeDisplayGetWidth = b.DisplayGetWidth
@@ -635,6 +692,33 @@ func RegisterBridge(b Bridge) {
 	bridgeSoundSynthSetVolume = b.SoundSynthSetVolume
 	bridgeSoundSynthGetVolume = b.SoundSynthGetVolume
 	bridgeSoundSynthIsPlaying = b.SoundSynthIsPlaying
+	bridgeSoundSynthSetSample = b.SoundSynthSetSample
+	bridgeSoundSynthCopy = b.SoundSynthCopy
+
+	// Sound - Channel
+	bridgeSoundGetDefaultChannel = b.SoundGetDefaultChannel
+	bridgeSoundChannelAddSource = b.SoundChannelAddSource
+	bridgeSoundChannelAddInstrument = b.SoundChannelAddInstrument
+
+	// Sound - Sequence
+	bridgeSoundSequenceNew = b.SoundSequenceNew
+	bridgeSoundSequenceLoadMIDI = b.SoundSequenceLoadMIDI
+	bridgeSoundSequenceGetTrackCount = b.SoundSequenceGetTrackCount
+	bridgeSoundSequenceGetTrackAtIndex = b.SoundSequenceGetTrackAtIndex
+	bridgeSoundSequencePlay = b.SoundSequencePlay
+	bridgeSoundSequenceStop = b.SoundSequenceStop
+	bridgeSoundSequenceGetCurrentStep = b.SoundSequenceGetCurrentStep
+
+	// Sound - Track
+	bridgeSoundTrackSetInstrument = b.SoundTrackSetInstrument
+	bridgeSoundTrackGetPolyphony = b.SoundTrackGetPolyphony
+	bridgeSoundTrackGetIndexForStep = b.SoundTrackGetIndexForStep
+	bridgeSoundTrackGetNoteAtIndex = b.SoundTrackGetNoteAtIndex
+
+	// Sound - Instrument
+	bridgeSoundInstrumentNew = b.SoundInstrumentNew
+	bridgeSoundInstrumentSetVolume = b.SoundInstrumentSetVolume
+	bridgeSoundInstrumentAddVoice = b.SoundInstrumentAddVoice
 
 	// Lua
 	bridgeLuaGetArgCount = b.LuaGetArgCount
