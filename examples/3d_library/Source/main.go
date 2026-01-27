@@ -113,7 +113,7 @@ func update() int {
 	root.AddTransform(rot1)
 
 	// Clear screen to black
-	pd.Graphics.Clear(pdgo.NewColorFromSolid(pdgo.ColorBlack))
+	pd.Graphics.Clear(pdgo.SolidBlack)
 
 	// Get frame buffer and draw
 	bitmap := pd.Graphics.GetFrame()

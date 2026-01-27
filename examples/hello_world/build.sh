@@ -1,15 +1,10 @@
 #!/bin/bash
+# Minimal build script - all complexity is handled by pdgoc
 
-cd Source
-
-go get github.com/playdate-go/pdgo@latest
-
-cd ..
-
-pdgoc -device -sim \
-  -name=HelloWorld \
-  -author=PdGo \
-  -desc="HelloWorld Game" \
-  -bundle-id=com.pdgo.hello_world \
+pdgoc -sim -device \
+  -name="HelloWorld" \
+  -author="PdGo" \
+  -desc="Hello World Demo" \
+  -bundle-id=com.pdgo.helloworld \
   -version=1.0 \
   -build-number=1

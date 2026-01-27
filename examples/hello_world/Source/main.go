@@ -4,7 +4,6 @@
 package main
 
 import (
-	"fmt"
 	"github.com/playdate-go/pdgo"
 )
 
@@ -29,13 +28,13 @@ func initGame() {
 	var err error
 	font, err = pd.Graphics.LoadFont("/System/Fonts/Asheville-Sans-14-Bold.pft")
 	if err != nil {
-		pd.System.Error(fmt.Sprintf("Couldn't load font: %s", err.Error()))
+		pd.System.Error("Couldn't load font")
 	}
 }
 
 // update is called every frame
 func update() int {
-	pd.Graphics.Clear(pdgo.NewColorFromSolid(pdgo.ColorWhite))
+	pd.Graphics.Clear(pdgo.SolidWhite)
 
 	if font != nil {
 		pd.Graphics.SetFont(font)

@@ -6,6 +6,9 @@ package main
 
 /*
 #include <stdint.h>
+
+// Set the global pd pointer in C code
+void pd_set_api(void* playdate);
 */
 import "C"
 import (
@@ -15,11 +18,15 @@ import (
 )
 
 //export eventHandler
-func eventHandler(playdateAPI unsafe.Pointer, event int32, arg uint32) int32 {
+func eventHandler(playdateAPI unsafe.Pointer, event C.int, arg C.uint32_t) C.int {
+	_ = arg
 	if pdgo.PDSystemEvent(event) == pdgo.EventInit {
+		// Set C global pd pointer
+		C.pd_set_api(playdateAPI)
+		// Initialize Go side
 		pd = pdgo.Init(playdateAPI)
 		initGame()
-		pd.System.SetUpdateCallback(update)
+		pdgo.SetUpdateCallback(update)
 	}
 	return 0
 }

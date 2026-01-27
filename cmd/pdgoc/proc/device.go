@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 )
 
 func (p *Processor) processDevice() error {
@@ -16,6 +17,17 @@ func (p *Processor) processDevice() error {
 
 	log.Println("Playdate executable and linkable format (ELF) file has been successfully built!")
 	return nil
+}
+
+// findPdgoPath finds the path to the pdgo module using go list
+func findPdgoPath(goSrcDir string) (string, error) {
+	cmd := exec.Command("go", "list", "-m", "-f", "{{.Dir}}", "github.com/playdate-go/pdgo")
+	cmd.Dir = goSrcDir
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to find pdgo module: %s", err)
+	}
+	return strings.TrimSpace(string(output)), nil
 }
 
 func (p *Processor) runBuildScript() error {
@@ -38,25 +50,38 @@ func (p *Processor) runBuildScript() error {
 		return fmt.Errorf("failed to create build directory: %s", err)
 	}
 
+	// Find pdgo module path and copy pd_cgo.c
+	pdgoPath, err := findPdgoPath(goSrcDir)
+	if err != nil {
+		return fmt.Errorf("failed to find pdgo module: %s", err)
+	}
+	log.Printf("found pdgo module at: %s", pdgoPath)
+
+	// Read pd_cgo.c from pdgo module
+	pdCgoSrc := filepath.Join(pdgoPath, "pd_cgo.c")
+	pdCgoContent, err := os.ReadFile(pdCgoSrc)
+	if err != nil {
+		return fmt.Errorf("failed to read pd_cgo.c from pdgo: %s", err)
+	}
+
+	// Write pd_cgo.c to build directory (will be compiled with -DTARGET_PLAYDATE=1)
 	pdRuntimeFilePath := filepath.Join(buildDir, "pd_runtime.c")
-
-	log.Printf("writing %s...", pdRuntimeFilePath)
-
-	if err = os.WriteFile(pdRuntimeFilePath, []byte(rawRuntimeC), 0644); err != nil {
+	log.Printf("copying %s to %s...", pdCgoSrc, pdRuntimeFilePath)
+	if err = os.WriteFile(pdRuntimeFilePath, pdCgoContent, 0644); err != nil {
 		return fmt.Errorf("failed to write pd_runtime.c: %s", err)
 	}
-	log.Printf("file has been successfuly created: %s", pdRuntimeFilePath)
+	log.Printf("file has been successfully created: %s", pdRuntimeFilePath)
 
-	bridgeTemplateFilePath := filepath.Join(goSrcDir, "bridge_template.go")
-
-	log.Printf("writing %s...", bridgeTemplateFilePath)
-	if err := os.WriteFile(bridgeTemplateFilePath, []byte(rawBridgeTemplate), 0644); err != nil {
-		return fmt.Errorf("failed to write bridge_template.go: %s", err)
+	// Write main_tinygo.go to Source directory
+	mainTinyGoFilePath := filepath.Join(goSrcDir, "main_tinygo.go")
+	log.Printf("writing %s...", mainTinyGoFilePath)
+	if err = os.WriteFile(mainTinyGoFilePath, []byte(rawMainTinyGo), 0644); err != nil {
+		return fmt.Errorf("failed to write main_tinygo.go: %s", err)
 	}
-	log.Printf("file has been seccessfully created: %s", bridgeTemplateFilePath)
+	log.Printf("file has been successfully created: %s", mainTinyGoFilePath)
 
+	// Run go mod tidy
 	log.Println("running cmd 'go mod tidy'...")
-
 	tidyCmd := exec.Command("go", "mod", "tidy")
 	tidyCmd.Dir = goSrcDir
 	if output, err := tidyCmd.CombinedOutput(); err != nil {
@@ -64,6 +89,7 @@ func (p *Processor) runBuildScript() error {
 	}
 	log.Printf("successfully ran 'go mod tidy'")
 
+	// Create temporary build script
 	buildScriptFile, err := os.CreateTemp("", "device-build-*.sh")
 	if err != nil {
 		return fmt.Errorf("failed to create temp build script file: %s", err)
@@ -85,14 +111,7 @@ func (p *Processor) runBuildScript() error {
 		return fmt.Errorf("warning: failed to chmod build script: %s", err)
 	}
 
-	mainTinyGoFilePath := filepath.Join(goSrcDir, "main_tinygo.go")
-
-	log.Printf("writing %s...", mainTinyGoFilePath)
-	if err = os.WriteFile(mainTinyGoFilePath, []byte(rawMainTinyGo), 0644); err != nil {
-		return fmt.Errorf("failed to write main_tinygo.go: %s", err)
-	}
-	log.Printf("file has been seccessfully created: %s", mainTinyGoFilePath)
-
+	// Run the build script
 	cmd := exec.Command("bash", buildScriptFile.Name())
 	cmd.Dir = goSrcDir
 	cmd.Env = append(os.Environ(),
@@ -105,12 +124,15 @@ func (p *Processor) runBuildScript() error {
 	cmd.Stderr = os.Stderr
 	buildErr := cmd.Run()
 
-	if err = os.Remove(bridgeTemplateFilePath); err == nil {
-		log.Printf("tmp file has been successfully removed! : %s", bridgeTemplateFilePath)
-	}
-
+	// Cleanup main_tinygo.go
 	if os.Remove(mainTinyGoFilePath) == nil {
 		log.Printf("tmp file has been successfully removed! : %s", mainTinyGoFilePath)
+	}
+
+	// Optionally cleanup build directory on success
+	if buildErr == nil {
+		os.RemoveAll(buildDir)
+		log.Printf("build directory has been cleaned up: %s", buildDir)
 	}
 
 	return buildErr

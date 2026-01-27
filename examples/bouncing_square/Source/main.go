@@ -11,9 +11,9 @@ var dx, dy int32 = 2, 3
 var size int32 = 20
 
 func update() int {
-	pd.Graphics.Clear(pdgo.NewColorFromSolid(pdgo.ColorWhite))
+	pd.Graphics.Clear(pdgo.SolidWhite)
 
-	pd.Graphics.FillRect(int(x), int(y), int(size), int(size), pdgo.NewColorFromSolid(pdgo.ColorBlack))
+	pd.Graphics.FillRect(int(x), int(y), int(size), int(size), pdgo.SolidBlack)
 
 	x += dx
 	y += dy

@@ -20,7 +20,7 @@ func initGame() {
 
 func update() int {
 	// Clear screen with white
-	pd.Graphics.Clear(pdgo.NewColorFromSolid(pdgo.ColorWhite))
+	pd.Graphics.Clear(pdgo.SolidWhite)
 
 	// Draw logo centered on screen
 	if logo != nil {

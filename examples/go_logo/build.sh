@@ -1,15 +1,10 @@
 #!/bin/bash
+# Minimal build script - all complexity is handled by pdgoc
 
-cd Source
-
-go get github.com/playdate-go/pdgo@latest
-
-cd ..
-
-pdgoc -device -sim \
-  -name=GoLogo \
-  -author=PdGo \
-  -desc="GoLogo Game" \
-  -bundle-id=com.pdgo.go_logo \
+pdgoc -sim -device \
+  -name="GoLogo" \
+  -author="PdGo" \
+  -desc="Go Logo Demo" \
+  -bundle-id=com.pdgo.gologo \
   -version=1.0 \
   -build-number=1

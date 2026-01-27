@@ -11,7 +11,7 @@ var (
 )
 
 func initGame() {
-	pd.System.LogToConsole("init")
+	pd.System.LogToConsole("Bach MIDI Player starting...")
 
 	// --- Sequence ---
 	seq = pd.Sound.Sequence.NewSequence()
@@ -30,7 +30,7 @@ func initGame() {
 	// --- Base synth template ---
 	baseSynth := pd.Sound.Synth.NewSynth()
 
-	// Try sample first (like in first code)
+	// Try sample first
 	if piano := pd.Sound.Sample.Load("piano"); piano != nil {
 		pd.Sound.Synth.SetSample(baseSynth, piano, 0, 0)
 		pd.System.LogToConsole("Using piano sample")
@@ -50,7 +50,6 @@ func initGame() {
 
 		pd.Sound.Track.SetInstrument(track, inst)
 
-		// Polyphony handling WITHOUT synth.Copy
 		poly := pd.Sound.Track.GetPolyphony(track)
 		if poly < 1 {
 			poly = 1
@@ -59,7 +58,6 @@ func initGame() {
 		for v := 0; v < poly; v++ {
 			s := pd.Sound.Synth.NewSynth()
 
-			// mirror base synth config
 			if piano := pd.Sound.Sample.Load("piano"); piano != nil {
 				pd.Sound.Synth.SetSample(s, piano, 0, 0)
 			} else {
@@ -88,7 +86,7 @@ func update() int {
 		}
 
 		// Clear right column
-		gfx.FillRect(399, 0, 1, 240, pdgo.NewColorFromSolid(pdgo.ColorWhite))
+		gfx.FillRect(399, 0, 1, 240, pdgo.SolidWhite)
 
 		// Draw notes
 		trackCount := pd.Sound.Sequence.GetTrackCount(seq)
@@ -107,7 +105,7 @@ func update() int {
 
 				y := 240 - 3*(int(note)-20)
 				if y >= 0 && y < 240 {
-					gfx.FillRect(399, y, 1, 3, pdgo.NewColorFromSolid(pdgo.ColorBlack))
+					gfx.FillRect(399, y, 1, 3, pdgo.SolidBlack)
 				}
 				idx++
 			}

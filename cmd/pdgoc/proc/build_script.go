@@ -6,14 +6,17 @@ package proc
 //   - GAME_DIR: Project root directory
 //   - GO_SRC_DIR: Directory containing Go source files (go.mod)
 //   - BUILD_DIR: Directory for build artifacts
-//   - TINYGO_DIR: TinyGo installation directory
 const rawBuildScript = `#!/bin/bash
 set -e
 
-TINYGO="$HOME/tinygo-playdate/build/tinygo"
-TINYGO_DIR="$HOME/tinygo-playdate"
+# TinyGo with Playdate support
+TINYGO="${TINYGO_PLAYDATE:-$HOME/tinygo-playdate/build/tinygo}"
+TINYGO_DIR="${TINYGO_PLAYDATE_DIR:-$HOME/tinygo-playdate}"
 
+# Playdate SDK path
 SDK="${PLAYDATE_SDK_PATH:-$(grep '^\s*SDKRoot' ~/.Playdate/config 2>/dev/null | head -n 1 | cut -c9-)}"
+
+# Validate requirements
 [ -z "$SDK" ] && { echo "Error: Playdate SDK not found"; exit 1; }
 [ ! -x "$TINYGO" ] && { echo "Error: TinyGo not found at $TINYGO"; exit 1; }
 ! command -v arm-none-eabi-gcc &>/dev/null && { echo "Error: arm-none-eabi-gcc not found"; exit 1; }
@@ -22,28 +25,30 @@ SDK="${PLAYDATE_SDK_PATH:-$(grep '^\s*SDKRoot' ~/.Playdate/config 2>/dev/null | 
 GAME_DIR="${GAME_DIR:-.}"
 GO_SRC_DIR="${GO_SRC_DIR:-$GAME_DIR/Source}"
 BUILD_DIR="${BUILD_DIR:-$GAME_DIR/build}"
+GAME_NAME="${GAME_NAME:-game}"
 
-GAME_NAME=${GAME_NAME}
+echo "=== Building $GAME_NAME for Playdate ==="
+echo "Go source: $GO_SRC_DIR"
+echo "Build dir: $BUILD_DIR"
 
-echo "🎮 Building $GAME_NAME for Playdate Device"
-echo "📂 Go source: $GO_SRC_DIR"
-echo "📂 Build dir: $BUILD_DIR"
+# ARM compiler flags
+MCFLAGS="-mthumb -mcpu=cortex-m7 -mfloat-abi=hard -mfpu=fpv5-sp-d16"
+CPFLAGS="-ffunction-sections -fdata-sections -mword-relocations -fno-common"
+LDFLAGS="--gc-sections --emit-relocs"
 
 cd "$GO_SRC_DIR"
 
-# Step 1: Compile C runtime (pd_runtime.c should already exist in BUILD_DIR)
-echo "📦 Step 1: Creating runtime library..."
-if [ ! -f "$BUILD_DIR/pd_runtime.c" ]; then
-    echo "Error: pd_runtime.c not found in $BUILD_DIR"
-    exit 1
-fi
+# Step 1: Compile C runtime (pd_runtime.c)
+echo "Step 1: Compiling C runtime..."
+arm-none-eabi-gcc $MCFLAGS $CPFLAGS -O2 -DTARGET_PLAYDATE=1 -DTARGET_EXTENSION=1 \
+    -I"$SDK/C_API" \
+    -c "$BUILD_DIR/pd_runtime.c" -o "$BUILD_DIR/pd_runtime.o"
 
-MCFLAGS="-mthumb -mcpu=cortex-m7 -mfloat-abi=hard -mfpu=fpv5-sp-d16"
-arm-none-eabi-gcc $MCFLAGS -O2 -DTARGET_PLAYDATE=1 -c "$BUILD_DIR/pd_runtime.c" -o "$BUILD_DIR/pd_runtime.o"
+# Create static library from pd_runtime.o
 arm-none-eabi-ar rcs "$BUILD_DIR/libpd.a" "$BUILD_DIR/pd_runtime.o"
 
 # Step 2: Create linker script and TinyGo target
-echo "⚙️  Step 2: Configuring build..."
+echo "Step 2: Configuring build..."
 cat > "$BUILD_DIR/playdate.ld" << 'LDSCRIPT'
 ENTRY(eventHandlerShim)
 
@@ -92,22 +97,39 @@ cat > "$TINYGO_DIR/targets/playdate.json" << EOF
 EOF
 
 # Step 3: Build with TinyGo
-echo "🔨 Step 3: Compiling with TinyGo..."
-$TINYGO build -target=playdate -o "$BUILD_DIR/pdex.elf" .
+echo "Step 3: Compiling Go code with TinyGo..."
+$TINYGO build -target=playdate -o "$BUILD_DIR/game.o" .
 
+# Step 4: Compile setup.c from SDK
+echo "Step 4: Compiling SDK setup..."
+arm-none-eabi-gcc $MCFLAGS $CPFLAGS -O2 -DTARGET_PLAYDATE=1 -DTARGET_EXTENSION=1 \
+    -I"$SDK/C_API" \
+    -c "$SDK/C_API/buildsupport/setup.c" -o "$BUILD_DIR/setup.o"
+
+# Step 5: Link everything
+echo "Step 5: Linking..."
+arm-none-eabi-gcc $MCFLAGS -T"$SDK/C_API/buildsupport/link_map.ld" \
+    -Wl,--gc-sections \
+    -Wl,--emit-relocs \
+    -nostartfiles \
+    "$BUILD_DIR/setup.o" \
+    "$BUILD_DIR/pd_runtime.o" \
+    "$BUILD_DIR/game.o" \
+    -o "$BUILD_DIR/pdex.elf"
+
+# Copy ELF to Source for pdc
 cp "$BUILD_DIR/pdex.elf" "$GO_SRC_DIR/"
 
-echo "📊 ELF info:"
+echo "ELF size:"
 arm-none-eabi-size "$BUILD_DIR/pdex.elf"
 
-# Step 4: Create PDX
-echo "📦 Step 4: Creating .pdx bundle..."
-"$SDK/bin/pdc" "-k" "$GO_SRC_DIR" "$GAME_DIR/${GAME_NAME}_device.pdx"
+# Step 6: Create PDX bundle
+echo "Step 6: Creating .pdx bundle..."
+"$SDK/bin/pdc" -k "$GO_SRC_DIR" "$GAME_DIR/${GAME_NAME}.pdx"
 
-# Clean up: remove pdex.elf from Source directory and build directory
+# Cleanup
 rm -f "$GO_SRC_DIR/pdex.elf"
-rm -rf "$BUILD_DIR"
 
 echo ""
-echo "✅ Build complete: $GAME_DIR/${GAME_NAME}_device.pdx"
+echo "=== Build complete: $GAME_DIR/${GAME_NAME}.pdx ==="
 `

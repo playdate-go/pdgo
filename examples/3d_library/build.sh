@@ -1,15 +1,10 @@
 #!/bin/bash
+# Minimal build script - all complexity is handled by pdgoc
 
-cd Source
-
-go get github.com/playdate-go/pdgo@latest
-
-cd ..
-
-pdgoc -device -sim \
-  -name="3D Library" \
-  -author=PdGo \
-  -desc="3D rendering demo with rotating icosahedron" \
-  -bundle-id=com.pdgo.3ddemo \
+pdgoc -sim -device \
+  -name="3DLibrary" \
+  -author="PdGo" \
+  -desc="3D Library Demo" \
+  -bundle-id=com.pdgo.3dlibrary \
   -version=1.0 \
   -build-number=1
