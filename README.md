@@ -297,15 +297,12 @@ Standard Go compiler (gc) only supports these targets:
 | darwin  | amd64, arm64                |
 | windows | amd64, arm64, 386           |
 
-Playdate requires: thumbv7em-none-eabihf (ARM Cortex-M7, no OS), and this simply impossible:  
+Playdate requires: thumbv7em-none-eabihf (ARM Cortex-M7, no OS), and this is simply impossible:  
 `GOOS=none GOARCH=thumbv7em go build  # not supported`
 
 Size:  
 Standard Go runtime includes Garbage Collector, Goroutine Scheduler, Stack Management and Reflection, binary size approx. 2-5 MB minimum.
-Playdate constraints are 16 MB total RAM (shared with game data, graphics, sound), games let's say typically 50 KB - 2 MB.
-
-CGO:  
-It can cross-compile C code, but `CGO_ENABLED=1 GOOS=linux GOARCH=arm go build` still  full Go runtime, still requires OS, and cannot target bate metal.
+Playdate constraints are 16 MB total RAM (shared with game data, graphics, sound), games typically 50 KB - 2 MB.
 
 | Feature            | Standard Go    | TinyGo                      |
 |--------------------|----------------|-----------------------------|
@@ -316,6 +313,7 @@ It can cross-compile C code, but `CGO_ENABLED=1 GOOS=linux GOARCH=arm go build` 
 | Custom GC          | No             | Yes pluggable (gc.playdate) |
 | No OS required     | No             | Yes                         |
 | Relocatable code   | No             | Yes via LLVM                |
+| CGO on bare-metal  | No             | Yes (with custom runtime)   |
 
 In short:
 
@@ -328,9 +326,9 @@ Go Source -> TinyGo Frontend -> LLVM IR -> LLVM Backend -> ARM Thumb-2 ELF
 ```
 
 Summary: Standard Go is designed for desktop/server environments, full operating systems, abundant memory (GB).
-Playdate required: bare-metal ARM Cortex-M7, no operating system, tiny runtime, SDK-device-managed memory,
+Playdate requires: bare-metal ARM Cortex-M7, no operating system, tiny runtime, SDK-managed memory.
 
-TinyGo bridges this gap by reimplementing Go compilation targeting embedded systems with LLVM backend.
+TinyGo bridges this gap by reimplementing Go compilation targeting embedded systems with LLVM backend. Our custom TinyGo build supports CGO on bare-metal Playdate hardware through a unified C wrapper layer (`pd_cgo.c`).
 
 ## Flow:
 
@@ -340,21 +338,19 @@ TinyGo bridges this gap by reimplementing Go compilation targeting embedded syst
 ┌─────────────────────────────────────────────────────────────┐
 │  pdgoc -device                                              │
 ├─────────────────────────────────────────────────────────────┤
-│  1. Create build/pd_runtime.c                               │
-│  2. Create Source/bridge_template.go                        │
-│  3. Create Source/main_tinygo.go                            │
-│  4. Run go mod tidy                                         │
-│  5. Create /tmp/device-build-*.sh                           │
-│  6. Execute build script:                                   │
+│  1. Copy pd_cgo.c from pdgo module to build/pd_runtime.c    │
+│  2. Create Source/main_tinygo.go                            │
+│  3. Run go mod tidy                                         │
+│  4. Create /tmp/device-build-*.sh                           │
+│  5. Execute build script:                                   │
 │     ├── Compile pd_runtime.c -> pd_runtime.o -> libpd.a     │
 │     ├── Create build/playdate.ld                            │
 │     ├── Create ~/tinygo-playdate/targets/playdate.json      │
 │     ├── TinyGo build -> pdex.elf                            │
-│     ├── pdc -> GameName_device.pdx/                         │
+│     ├── pdc -> GameName.pdx/                                │
 │     └── Delete build/ directory                             │
-│  7. Delete Source/bridge_template.go                        │
-│  8. Delete Source/main_tinygo.go                            │
-│  9. Delete Source/pdxinfo                                   │
+│  6. Delete Source/main_tinygo.go                            │
+│  7. Delete Source/pdxinfo                                   │
 └─────────────────────────────────────────────────────────────┘
 ```
 ### Simulator Build
@@ -377,23 +373,20 @@ Temporary files created by `pdgoc` during build:
 
 **Device Build Files**
 
-`pd_runtime.c` - This C file acts as the bridge between the Playdate SDK and TinyGo. Since TinyGo cannot directly call C functions without CGO (which is unavailable for bare-metal targets), we create thin C wrapper functions that TinyGo can reference via //go:extern directives. This file provides _cgo_pd_realloc for memory allocation, _cgo_pd_logToConsole for debug output, and _cgo_pd_getCurrentTimeMS for timing. It also contains eventHandlerShim, which is the actual entry point that Playdate calls - this shim initializes the Go runtime before delegating to the user's Go eventHandler.
+`pd_runtime.c` - Copied from `pd_cgo.c` in the pdgo module. This C file provides all Playdate SDK wrappers that Go code calls via CGO. It includes TinyGo runtime support functions (`_cgo_pd_realloc`, `_cgo_pd_logToConsole`, `_cgo_pd_getCurrentTimeMS`) and the `eventHandler` entry point. Compiled with `-DTARGET_PLAYDATE=1` to enable device-specific code.
 
-`bridge_template.go` - TinyGo needs to know how to call the pdgo API functions. This file registers function pointers from the C runtime into Go, allowing the pdgo package to invoke SDK functions like graphics->drawBitmap or system->drawFPS. Without this bridge, TinyGo would have no way to communicate with the Playdate hardware.
-
-`main_tinygo.go` - Contains the //export eventHandler and //export updateCallback directives that tell TinyGo to expose these functions as C-callable symbols. Playdate's firmware expects to find these exact function names in the compiled binary. This file is separate from the user's main.go to avoid polluting their code with build-specific exports.
+`main_tinygo.go` - Contains the `//export go_init` and `//export go_update` directives that tell TinyGo to expose these functions as C-callable symbols. The C runtime calls these functions to initialize the game and run the update loop. This file is separate from the user's main.go to avoid polluting their code with build-specific exports.
 
 `playdate.ld` - The linker script tells the ARM linker how to arrange code and data in memory. It defines the entry point (eventHandlerShim), ensures critical functions appear at the beginning of the binary, and sets up BSS/data sections.
 
 `playdate.json` - TinyGo's target configuration file. It specifies the CPU architecture (Cortex-M7), compiler flags, which garbage collector to use (gc.playdate), and links to the linker script. This file tells TinyGo exactly how to compile for Playdate hardware.
 
-`libpd.a` - A static library compiled from pd_runtime.c. TinyGo links against this library to resolve the _cgo_pd_* function references. Static linking ensures all SDK wrapper code is embedded directly in the final binary.
+`libpd.a` - A static library compiled from pd_runtime.c. TinyGo links against this library to resolve the C function references. Static linking ensures all SDK wrapper code is embedded directly in the final binary.
 
 
 | File                 | Location                     | Purpose                          | Cleanup                   |
 |----------------------|------------------------------|----------------------------------|---------------------------|
-| `pd_runtime.c`       | `build/`                     | C shim with SDK wrappers         | Deleted with `build/` dir |
-| `bridge_template.go` | `Source/`                    | TinyGo API bridge registration   | Deleted after build       |
+| `pd_runtime.c`       | `build/`                     | C wrappers (copy of pd_cgo.c)    | Deleted with `build/` dir |
 | `main_tinygo.go`     | `Source/`                    | TinyGo entry points (`//export`) | Deleted after build       |
 | `device-build-*.sh`  | `/tmp/`                      | Embedded build script            | Deleted after build       |
 | `playdate.ld`        | `build/`                     | Linker script                    | Deleted with `build/` dir |
@@ -406,11 +399,13 @@ Temporary files created by `pdgoc` during build:
 
 **Simulator Build Files**
 
-`main_cgo.go` - Similar purpose to main_tinygo.go, but uses CGO instead of TinyGo exports. Contains import "C" and //export directives that tell the standard Go compiler to generate C-callable functions. The simulator runs on your host machine (macOS/Linux), where CGO is fully supported.
+The simulator build uses the same `pd_cgo.c` from the pdgo module as the device build, but compiled for the host architecture. The C wrappers are linked directly into the shared library via standard Go CGO.
+
+`main_cgo.go` - Contains `import "C"` and `//export eventHandler` directive that tells the standard Go compiler to generate a C-callable entry point. The simulator runs on your host machine (macOS/Linux), where CGO is fully supported.
 
 `pdex.h` - Automatically generated by go build -buildmode=c-shared. This header file contains C function declarations for all exported Go functions. We immediately delete it since Playdate doesn't need it - the SDK already knows the expected function signatures.
 
-`pdex.dylib` / `pdex.so` - The compiled shared library containing your Go game code. The Playdate Simulator dynamically loads this library at runtime and calls eventHandler when your game starts. This file is moved into the .pdx bundle by pdc.
+`pdex.dylib` / `pdex.so` - The compiled shared library containing your Go game code and the C wrappers. The Playdate Simulator dynamically loads this library at runtime and calls eventHandler when your game starts. This file is moved into the .pdx bundle by pdc.
 
 | File                     | Location  | Purpose                       | Cleanup             |
 |--------------------------|-----------|-------------------------------|---------------------|
