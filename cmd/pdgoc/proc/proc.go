@@ -6,6 +6,8 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strings"
 )
 
 type Processor struct {
@@ -32,6 +34,11 @@ func (p *Processor) Process() error {
 		if err := p.processDevice(); err != nil {
 			return err
 		}
+		if p.cfg.System.DeployMode {
+			if err := p.deployToDevice(); err != nil {
+				return err
+			}
+		}
 
 	case p.cfg.System.SimMode:
 		log.Println("mode: simulator (build project for Playdate Simulator)")
@@ -44,12 +51,30 @@ func (p *Processor) Process() error {
 		if err := p.processDevice(); err != nil {
 			return err
 		}
+		if p.cfg.System.DeployMode {
+			if err := p.deployToDevice(); err != nil {
+				return err
+			}
+		}
 
 	default:
 		return fmt.Errorf("no mode specified")
 	}
 
 	return nil
+}
+
+func (p *Processor) deployToDevice() error {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("failed to get current working directory: %s", err)
+	}
+
+	// Remove spaces from game name for pdx filename
+	gameName := strings.ReplaceAll(p.cfg.Meta.Name, " ", "")
+	pdxPath := filepath.Join(cwd, gameName+".pdx")
+
+	return p.Deploy(pdxPath)
 }
 
 func (p *Processor) execCmd(name string, args []string) error {

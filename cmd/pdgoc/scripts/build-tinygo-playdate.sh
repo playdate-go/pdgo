@@ -3,10 +3,23 @@
 # Build TinyGo with Playdate Support
 #
 # This script builds TinyGo from source with Playdate runtime support.
-# Takes 0.5-1h to complete.
+#
+# Build time:
+#   - With system LLVM (Linux only): ~1 minute
+#   - Building LLVM from source: ~25-30 minutes
 #
 # Usage:
-#   ./build-tinygo-playdate.sh [--jobs N]
+#   ./build-tinygo-playdate.sh [--jobs N] [--use-system-llvm] [--build-llvm]
+#
+# Options:
+#   --tinygo-version VER  TinyGo version to build (default: 0.40.1)
+#   --use-system-llvm     Use system LLVM (Linux only! Does NOT work on macOS)
+#   --build-llvm          Force building LLVM from source
+#   --jobs N              Number of parallel jobs (default: auto)
+#
+# NOTE: --use-system-llvm does NOT work on macOS because Homebrew LLVM
+#       does not include static LLD libraries required to build TinyGo.
+#       On macOS, always build LLVM from source (default behavior).
 #
 # The resulting TinyGo will be in:
 #   ~/tinygo-playdate/build/tinygo
@@ -25,12 +38,29 @@ TINYGO_DIR="$HOME/tinygo-playdate"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PDGO_DIR="$(dirname "$SCRIPT_DIR")"
 
+FORCE_SYSTEM_LLVM=false
+FORCE_BUILD_LLVM=false
+LLVM_VERSION="20"
+TINYGO_VERSION="0.40.1"
+
 # Parse arguments
 while [[ $# -gt 0 ]]; do
     case $1 in
         --jobs)
             JOBS="$2"
             shift 2
+            ;;
+        --tinygo-version)
+            TINYGO_VERSION="$2"
+            shift 2
+            ;;
+        --use-system-llvm)
+            FORCE_SYSTEM_LLVM=true
+            shift
+            ;;
+        --build-llvm)
+            FORCE_BUILD_LLVM=true
+            shift
             ;;
         *)
             shift
@@ -42,11 +72,83 @@ echo -e "${CYAN}╔════════════════════�
 echo -e "${CYAN}║       Building TinyGo with Playdate Support              ║${NC}"
 echo -e "${CYAN}╚══════════════════════════════════════════════════════════╝${NC}"
 echo ""
+echo -e "TinyGo version:  ${GREEN}v$TINYGO_VERSION${NC}"
+echo -e "LLVM version:    ${GREEN}$LLVM_VERSION${NC}"
 echo -e "Build directory: ${GREEN}$TINYGO_DIR${NC}"
 echo -e "Parallel jobs:   ${GREEN}$JOBS${NC}"
 echo ""
-echo -e "${YELLOW}⚠️  This will take 1-2 hours!${NC}"
-echo ""
+
+# Function to find system LLVM
+find_system_llvm() {
+    local llvm_path=""
+    
+    # macOS: Check Homebrew
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # Try different LLVM versions (20 first for TinyGo 0.40+)
+        for ver in 20 19 18 17; do
+            if brew --prefix llvm@$ver &>/dev/null 2>&1; then
+                llvm_path="$(brew --prefix llvm@$ver)"
+                if [ -f "$llvm_path/bin/llvm-config" ]; then
+                    echo "$llvm_path"
+                    return 0
+                fi
+            fi
+        done
+        # Try unversioned llvm
+        if brew --prefix llvm &>/dev/null 2>&1; then
+            llvm_path="$(brew --prefix llvm)"
+            if [ -f "$llvm_path/bin/llvm-config" ]; then
+                echo "$llvm_path"
+                return 0
+            fi
+        fi
+    fi
+    
+    # Linux: Check common paths (20 first for TinyGo 0.40+)
+    for ver in 20 19 18 17; do
+        # apt-style paths
+        if [ -f "/usr/lib/llvm-$ver/bin/llvm-config" ]; then
+            echo "/usr/lib/llvm-$ver"
+            return 0
+        fi
+        # Alternative Linux paths
+        if [ -f "/usr/lib64/llvm$ver/bin/llvm-config" ]; then
+            echo "/usr/lib64/llvm$ver"
+            return 0
+        fi
+    done
+    
+    # Check if llvm-config is in PATH
+    if command -v llvm-config &>/dev/null; then
+        local llvm_bin_dir="$(dirname "$(which llvm-config)")"
+        echo "$(dirname "$llvm_bin_dir")"
+        return 0
+    fi
+    
+    return 1
+}
+
+# Function to get LLVM install instructions
+get_llvm_install_instructions() {
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        echo "  ⚠️  macOS: --use-system-llvm is NOT supported (Homebrew LLVM lacks LLD libraries)"
+        echo "  Just run the script without --use-system-llvm to build LLVM from source."
+    elif command -v apt &>/dev/null; then
+        echo "  # Add LLVM apt repository"
+        echo "  wget https://apt.llvm.org/llvm.sh"
+        echo "  chmod +x llvm.sh"
+        echo "  sudo ./llvm.sh $LLVM_VERSION"
+        echo ""
+        echo "  # Install required dev packages"
+        echo "  sudo apt install clang-$LLVM_VERSION llvm-$LLVM_VERSION-dev lld-$LLVM_VERSION libclang-$LLVM_VERSION-dev"
+    elif command -v dnf &>/dev/null; then
+        echo "  sudo dnf install llvm$LLVM_VERSION-devel clang$LLVM_VERSION-devel lld$LLVM_VERSION-devel"
+    elif command -v pacman &>/dev/null; then
+        echo "  sudo pacman -S llvm clang lld"
+    else
+        echo "  Download from: https://releases.llvm.org/"
+    fi
+}
 
 # Check dependencies
 echo -e "${YELLOW}Checking dependencies...${NC}"
@@ -75,43 +177,107 @@ fi
 
 echo -e "${GREEN}All dependencies OK${NC}"
 
+# Determine LLVM strategy
+USE_SYSTEM_LLVM=false
+SYSTEM_LLVM_PATH=""
+
+# Check for macOS + --use-system-llvm (not supported)
+if [ "$FORCE_SYSTEM_LLVM" = true ] && [[ "$OSTYPE" == "darwin"* ]]; then
+    echo -e "${RED}ERROR: --use-system-llvm is NOT supported on macOS${NC}"
+    echo ""
+    echo "Homebrew LLVM does not include static LLD libraries (liblldCOFF.a, liblldELF.a, etc.)"
+    echo "which are required to build TinyGo."
+    echo ""
+    echo "Please run the script without --use-system-llvm to build LLVM from source:"
+    echo "  ./build-tinygo-playdate.sh"
+    exit 1
+fi
+
+if [ "$FORCE_BUILD_LLVM" = true ]; then
+    echo -e "${YELLOW}Forcing LLVM build from source (--build-llvm)${NC}"
+    USE_SYSTEM_LLVM=false
+elif SYSTEM_LLVM_PATH=$(find_system_llvm); then
+    echo -e "${GREEN}Found system LLVM at: $SYSTEM_LLVM_PATH${NC}"
+    LLVM_VER=$("$SYSTEM_LLVM_PATH/bin/llvm-config" --version 2>/dev/null || echo "unknown")
+    echo -e "LLVM version: ${GREEN}$LLVM_VER${NC}"
+    USE_SYSTEM_LLVM=true
+elif [ "$FORCE_SYSTEM_LLVM" = true ]; then
+    echo -e "${RED}System LLVM not found but --use-system-llvm was specified${NC}"
+    echo ""
+    echo "Install LLVM first:"
+    get_llvm_install_instructions
+    exit 1
+else
+    echo -e "${YELLOW}System LLVM not found. Will build from source (~25-30 minutes).${NC}"
+    echo ""
+    echo -e "To speed up future builds, install LLVM:"
+    get_llvm_install_instructions
+    echo ""
+    read -p "Continue with LLVM build from source? [Y/n] " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Nn]$ ]]; then
+        echo "Aborted. Install LLVM and run again."
+        exit 1
+    fi
+fi
+
+if [ "$USE_SYSTEM_LLVM" = true ]; then
+    echo -e "${GREEN}Using system LLVM - build will take ~1 minute${NC}"
+else
+    echo -e "${YELLOW}Building LLVM from source - this will take ~25 minutes${NC}"
+fi
+echo ""
+
 # Clone or update TinyGo
 if [ -d "$TINYGO_DIR/.git" ]; then
     echo -e "${YELLOW}Updating TinyGo repository...${NC}"
     cd "$TINYGO_DIR"
-    git pull
+    git fetch --all --tags
 else
     echo -e "${YELLOW}Cloning TinyGo repository...${NC}"
     git clone --recursive https://github.com/tinygo-org/tinygo.git "$TINYGO_DIR"
     cd "$TINYGO_DIR"
 fi
 
+# Checkout specific TinyGo version
+echo -e "${YELLOW}Checking out TinyGo v${TINYGO_VERSION}...${NC}"
+git checkout "v${TINYGO_VERSION}"
+
 # Initialize submodules
 git submodule update --init --recursive
 
-# Download LLVM sources
-echo ""
-echo -e "${YELLOW}Step 1/4: Downloading LLVM sources...${NC}"
-make llvm-source
+# LLVM setup
+if [ "$USE_SYSTEM_LLVM" = true ]; then
+    echo ""
+    echo -e "${GREEN}Step 1/3: Using system LLVM (skipping download and build)${NC}"
+    LLVM_BUILDDIR="$SYSTEM_LLVM_PATH"
+else
+    # Download LLVM sources
+    echo ""
+    echo -e "${YELLOW}Step 1/4: Downloading LLVM sources...${NC}"
+    make llvm-source
 
-# Build LLVM
-echo ""
-echo -e "${YELLOW}Step 2/4: Building LLVM (this takes ~1 hour)...${NC}"
-echo -e "Started at: $(date)"
+    # Build LLVM
+    echo ""
+    echo -e "${YELLOW}Step 2/4: Building LLVM (this takes ~20-25 minutes)...${NC}"
+    echo -e "Started at: $(date)"
 
-# Use clang if available for faster build
-if command -v clang &>/dev/null; then
-    export CC=clang
-    export CXX=clang++
+    # Use clang if available for faster build
+    if command -v clang &>/dev/null; then
+        export CC=clang
+        export CXX=clang++
+    fi
+
+    LLVM_PARALLEL=$JOBS make llvm-build
+
+    echo -e "LLVM built at: $(date)"
+    LLVM_BUILDDIR=""
 fi
 
-LLVM_PARALLEL=$JOBS make llvm-build
-
-echo -e "LLVM built at: $(date)"
-
 # Copy Playdate target and runtime files
+STEP_NUM=$( [ "$USE_SYSTEM_LLVM" = true ] && echo "2/3" || echo "3/4" )
 echo ""
-echo -e "${YELLOW}Step 3/4: Adding Playdate support...${NC}"
+echo -e "${YELLOW}Step $STEP_NUM: Adding Playdate support...${NC}"
 
 # Create base target (paths will be set dynamically by pdgoc build script)
 cat > "$TINYGO_DIR/targets/playdate.json" << 'EOF'
@@ -159,7 +325,7 @@ SECTIONS
 }
 EOF
 
-# Copy runtime Go file (NO C files - TinyGo doesn't support them without CGO)
+# Copy runtime Go file
 cat > "$TINYGO_DIR/src/runtime/runtime_playdate.go" << 'EOF'
 //go:build playdate
 
@@ -296,14 +462,22 @@ EOF
 echo -e "${GREEN}Playdate support files added${NC}"
 
 # Build TinyGo
+STEP_NUM=$( [ "$USE_SYSTEM_LLVM" = true ] && echo "3/3" || echo "4/4" )
 echo ""
-echo -e "${YELLOW}Step 4/4: Building TinyGo...${NC}"
-make
+echo -e "${YELLOW}Step $STEP_NUM: Building TinyGo...${NC}"
+
+if [ "$USE_SYSTEM_LLVM" = true ]; then
+    # Build with system LLVM
+    make LLVM_BUILDDIR="$LLVM_BUILDDIR"
+else
+    # Build with locally compiled LLVM
+    make
+fi
 
 # Verify
 echo ""
 echo -e "${GREEN}╔══════════════════════════════════════════════════════════╗${NC}"
-echo -e "${GREEN}║                    Build Complete!                        ║${NC}"
+echo -e "${GREEN}║                    Build Complete!                       ║${NC}"
 echo -e "${GREEN}╚══════════════════════════════════════════════════════════╝${NC}"
 echo ""
 echo "TinyGo binary: $TINYGO_DIR/build/tinygo"

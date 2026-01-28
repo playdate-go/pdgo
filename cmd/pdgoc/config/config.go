@@ -54,6 +54,7 @@ type System struct {
 	SimMode    bool
 	DeviceMode bool
 	RunMode    bool
+	DeployMode bool
 	InputPath  string
 	OutputPath string
 }
@@ -70,6 +71,10 @@ func (system *System) Validate() error {
 
 	if (system.SimMode || system.DeviceMode) && system.RunMode {
 		return fmt.Errorf("'-run' flag cannot be passed with '-sim' or '-device'")
+	}
+
+	if system.DeployMode && !system.DeviceMode {
+		return fmt.Errorf("'-deploy' requires '-device' flag")
 	}
 
 	return nil
@@ -94,6 +99,7 @@ func Load() (*Config, error) {
 	flag.BoolVar(&cfg.System.SimMode, "sim", false, "build project for Playdate Simulator")
 	flag.BoolVar(&cfg.System.DeviceMode, "device", false, "build project for real Playdate console")
 	flag.BoolVar(&cfg.System.RunMode, "run", false, "build and run project in Playdate Simulator")
+	flag.BoolVar(&cfg.System.DeployMode, "deploy", false, "deploy and run on connected Playdate device (requires -device)")
 
 	flag.StringVar(&cfg.Meta.Name, "name", "", "set pdxinfo 'name' property")
 	flag.StringVar(&cfg.Meta.Author, "author", "", "set pdxinfo 'author' property")

@@ -12,4 +12,4 @@ pdex.h
 
 .DS_Store
 
-cmd/pdgoc
+cmd/pdgoc/pdgoc

@@ -47,11 +47,12 @@ To achieve this, we need to rewrite all official Playdate SDK examples from C/Lu
 > [!TIP]  
 > The `sim` and `device` flags can be combined to build for both Simulator and Device simultaneously.
 
-| Flag     | Description                                       |
-|----------|---------------------------------------------------|
-| `sim`    | Builds project for the Playdate Simulator only    |
-| `device` | Builds project for the Playdate console only      | 
-| `run`    | Builds and runs project in the Playdate Simulator | 
+| Flag     | Description                                                   |
+|----------|---------------------------------------------------------------|
+| `sim`    | Builds project for the Playdate Simulator only                |
+| `device` | Builds project for the Playdate console only                  | 
+| `run`    | Builds and runs project in the Playdate Simulator             |
+| `deploy` | Deploys and runs on connected Playdate device (requires `-device`) | 
 
 
 | Flag                | Description                                     |
@@ -420,29 +421,77 @@ The simulator build uses the same `pd_cgo.c` from the pdgo module as the device 
 You must build a custom TinyGo compiler with Playdate hardware support before using the pdgoc CLI tool.
 Thankfully it's easy to do using just one `scripts/build-tinygo-playdate.sh`.
 
-What `build-tinygo-playdate.sh` does:
+### Step 1: Install LLVM (Linux only)
 
-The script builds a custom TinyGo compiler with Playdate support in four steps:
+> [!IMPORTANT]
+> **macOS users**: Skip this step! Homebrew LLVM does not include static LLD libraries required to build TinyGo.
+> The build script will automatically compile LLVM from source (~25-30 minutes, only needed once).
 
-- Step 1: Clone TinyGo - downloads TinyGo source code from GitHub to `~/tinygo-playdate`, or updates it if already present.
+Pre-installing LLVM on Linux reduces build time from **~25-30 minutes** to **~1 minute**.
 
+#### Linux (Ubuntu/Debian)
 
-- Step 2: Build LLVM - compiles LLVM from source. TinyGo uses LLVM as its compiler backend for generating optimized ARM code.
+```bash
+# Add LLVM apt repository
+wget https://apt.llvm.org/llvm.sh
+chmod +x llvm.sh
+sudo ./llvm.sh 20
 
+# Install ALL required dev packages
+sudo apt install clang-20 llvm-20-dev lld-20 libclang-20-dev
+```
 
-- Step 3: Add Playdate Files - injects four custom files into TinyGo:
+#### Linux (Fedora)
 
-    - playdate.json - target config (Cortex-M7, custom GC, no scheduler)
-      playdate.ld
-    - linker script (memory layout, entry point)
-    - runtime_playdate.go - Platform runtime (time, console output via SDK)
-    - gc_playdate.go - custom GC that delegates to Playdate SDK's realloc.
+```bash
+sudo dnf install llvm20-devel clang20-devel lld20-devel
+```
 
+#### Linux (Arch)
 
-- Step 4: Build TinyGo - Compiles the TinyGo binary with Playdate support included.
-  Result: ~/tinygo-playdate/build/tinygo - a TinyGo compiler that accepts -target=playdate and produces minimal ARM binaries (approx. 4-5 KB) for Playdate hardware.
+```bash
+sudo pacman -S llvm clang lld
+```
 
-If all went ok - you will see this (versions maybe different in you environment)
+### Step 2: Build TinyGo
+
+> [!NOTE]
+> The build script checks for missing dependencies (go, cmake, ninja, git) and tells you how to install them.
+>
+> **ARM Toolchain:**
+> - **macOS**: Included with Playdate SDK - no separate installation needed
+> - **Linux**: Install `gcc-arm-none-eabi` via your package manager
+
+```bash
+# Run the build script (auto-detects system installed LLVM)
+./cmd/pdgoc/scripts/build-tinygo-playdate.sh
+```
+
+**Build script options:**
+
+| Flag                   | Description                                         |
+|------------------------|-----------------------------------------------------|
+| `--tinygo-version VER` | TinyGo version to build (default: 0.40.1)           |
+| `--use-system-llvm`    | Force using system LLVM (fails if not found)        |
+| `--build-llvm`         | Force building LLVM from source                     |
+| `--jobs N`             | Number of parallel jobs                             |
+
+**What `build-tinygo-playdate.sh` does:**
+
+The script builds a custom TinyGo compiler with Playdate support:
+
+1. **Clone TinyGo** - downloads TinyGo v0.40.1 (or specified version) to `~/tinygo-playdate`
+2. **Setup LLVM** - uses system installed LLVM if available, otherwise builds from source
+3. **Add Playdate Files** - injects custom files into TinyGo:
+   - `playdate.json` - target config (Cortex-M7, custom GC, no scheduler)
+   - `playdate.ld` - linker script (memory layout, entry point)
+   - `runtime_playdate.go` - platform runtime (time, console output via SDK)
+   - `gc_playdate.go` - custom GC that delegates to Playdate SDK's realloc
+4. **Build TinyGo** - compiles the TinyGo binary with Playdate support
+
+Result: `~/tinygo-playdate/build/tinygo` - a TinyGo compiler that accepts `-target=playdate` and produces minimal ARM binaries (~4-5 KB) for Playdate hardware.
+
+If all went ok - you will see this (versions may differ in your environment):
 
 ```
 ╔══════════════════════════════════════════════════════════╗
@@ -457,11 +506,10 @@ To use:
 
 tinygo version 0.40.1 darwin/arm64 (using go version go1.25.6 and LLVM version 20.1.1)
 Playdate target added
-
 ```
 
 >[!NOTE]
-> On my machine - not new MacBook M1 Pro, it took approx. 25-30 minutes.
+> With pre-installed LLVM: ~1 minute. Without: ~25 minutes.
 
 Once you have TinyGo, you need install `pdgoc`
 
