@@ -1,4 +1,4 @@
-module github.com/playdate-go/pdgoc
+module github.com/playdate-go/pdgo/cmd/pdgoc
 
 go 1.25.6
 

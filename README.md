@@ -1,10 +1,34 @@
 
 <img src="assets/gopher-on-playdate.jpg" alt="Gopher on Playdate" width="300"  >
 
+## Quick Install
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/playdate-go/pdgo/main/install.sh | bash
+```
+
+This installs **everything** you need:
+- `pdgoc` — the build tool
+- `TinyGo` with Playdate support (for device builds)
+- Configures your PATH automatically
+
+**Build time:** ~25 minutes (mostly LLVM compilation on macOS)
+
+**Options:**
+```bash
+# Skip TinyGo build (simulator-only, instant install)
+SKIP_TINYGO=1 curl -fsSL https://raw.githubusercontent.com/playdate-go/pdgo/main/install.sh | bash
+
+# Custom parallel jobs
+JOBS=8 curl -fsSL ... | bash
+```
+
+---
+
 ## Menu
 
 - [Overview](#overview)
-
+- [Quick Install](#quick-install)
 - [Usage](#usage)
 - [Internals](#internals)
 - [Why Not Go But TinyGo](#why-not-go-but-tinygo)

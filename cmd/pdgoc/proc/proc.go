@@ -2,7 +2,7 @@ package proc
 
 import (
 	"fmt"
-	"github.com/playdate-go/pdgoc/config"
+	"github.com/playdate-go/pdgo/cmd/pdgoc/config"
 	"log"
 	"os"
 	"os/exec"
