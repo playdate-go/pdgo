@@ -150,46 +150,13 @@ else
     git checkout "v$TINYGO_VERSION"
     git submodule update --init --recursive
 
-    # Check for system LLVM (Linux only)
-    USE_SYSTEM_LLVM=false
-    SYSTEM_LLVM_PATH=""
-
-    if [[ "$OSTYPE" != "darwin"* ]]; then
-        # Try to find system LLVM on Linux
-        for ver in 20 19 18 17; do
-            if [ -f "/usr/lib/llvm-$ver/bin/llvm-config" ]; then
-                SYSTEM_LLVM_PATH="/usr/lib/llvm-$ver"
-                USE_SYSTEM_LLVM=true
-                break
-            fi
-        done
+    # Clean previous build to ensure Playdate files are included
+    if [ -d "$TINYGO_DIR/build" ]; then
+        echo "  Cleaning previous build..."
+        make clean 2>/dev/null || rm -rf "$TINYGO_DIR/build"
     fi
 
-    if [ "$USE_SYSTEM_LLVM" = true ]; then
-        echo -e "  Found system LLVM at: ${GREEN}$SYSTEM_LLVM_PATH${NC}"
-        echo "  Building TinyGo (~1 minute)..."
-        make LLVM_BUILDDIR="$SYSTEM_LLVM_PATH"
-    else
-        echo "  Downloading LLVM sources..."
-        make llvm-source
-
-        echo "  Building LLVM (~20-25 minutes)..."
-        echo "  Started at: $(date)"
-        
-        # Use clang if available
-        if command -v clang &>/dev/null; then
-            export CC=clang
-            export CXX=clang++
-        fi
-
-        LLVM_PARALLEL=$JOBS make llvm-build
-        echo "  LLVM completed at: $(date)"
-
-        echo "  Building TinyGo..."
-        make
-    fi
-
-    # Add Playdate target files
+    # Add Playdate support files BEFORE building (required for gc.playdate)
     echo "  Adding Playdate support files..."
 
     # playdate.json
@@ -254,6 +221,12 @@ func _cgo_pd_getCurrentTimeMS() uint32
 
 //go:extern _cgo_pd_logToConsole
 func _cgo_pd_logToConsole(msg *byte)
+
+// runtime_init is called from C to initialize the Go runtime
+//export runtime_init
+func runtime_init() {
+    initAll()
+}
 
 func ticks() timeUnit {
     return timeUnit(_cgo_pd_getCurrentTimeMS()) * 1000000
@@ -351,6 +324,46 @@ func initHeap() {}
 
 func setHeapEnd(newHeapEnd uintptr) {}
 EOF
+
+    # Check for system LLVM (Linux only)
+    USE_SYSTEM_LLVM=false
+    SYSTEM_LLVM_PATH=""
+
+    if [[ "$OSTYPE" != "darwin"* ]]; then
+        # Try to find system LLVM on Linux
+        for ver in 20 19 18 17; do
+            if [ -f "/usr/lib/llvm-$ver/bin/llvm-config" ]; then
+                SYSTEM_LLVM_PATH="/usr/lib/llvm-$ver"
+                USE_SYSTEM_LLVM=true
+                break
+            fi
+        done
+    fi
+
+    # Build TinyGo
+    if [ "$USE_SYSTEM_LLVM" = true ]; then
+        echo -e "  Found system LLVM at: ${GREEN}$SYSTEM_LLVM_PATH${NC}"
+        echo "  Building TinyGo (~1 minute)..."
+        make LLVM_BUILDDIR="$SYSTEM_LLVM_PATH"
+    else
+        echo "  Downloading LLVM sources..."
+        make llvm-source
+
+        echo "  Building LLVM (~20-25 minutes)..."
+        echo "  Started at: $(date)"
+        
+        # Use clang if available
+        if command -v clang &>/dev/null; then
+            export CC=clang
+            export CXX=clang++
+        fi
+
+        LLVM_PARALLEL=$JOBS make llvm-build
+        echo "  LLVM completed at: $(date)"
+
+        echo "  Building TinyGo..."
+        make
+    fi
 
     echo -e "  ${GREEN}TinyGo built successfully!${NC}"
 fi
