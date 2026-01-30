@@ -20,11 +20,6 @@ func NewProcessor(cfg *config.Config) *Processor {
 
 func (p *Processor) Process() error {
 	switch {
-	case p.cfg.System.RunMode:
-		log.Println("mode: run (build and run project in Playdate Simulator)")
-		if err := p.processRun(); err != nil {
-			return err
-		}
 
 	case p.cfg.System.SimMode && p.cfg.System.DeviceMode:
 		log.Println("mode: simulator and device (build project for Playdate Simulator and real Playdate Console)")
@@ -33,6 +28,11 @@ func (p *Processor) Process() error {
 		}
 		if err := p.processDevice(); err != nil {
 			return err
+		}
+		if p.cfg.System.RunMode {
+			if err := p.processRun(); err != nil {
+				return err
+			}
 		}
 		if p.cfg.System.DeployMode {
 			if err := p.deployToDevice(); err != nil {
@@ -44,6 +44,11 @@ func (p *Processor) Process() error {
 		log.Println("mode: simulator (build project for Playdate Simulator)")
 		if err := p.processSim(); err != nil {
 			return err
+		}
+		if p.cfg.System.RunMode {
+			if err := p.processRun(); err != nil {
+				return err
+			}
 		}
 
 	case p.cfg.System.DeviceMode:

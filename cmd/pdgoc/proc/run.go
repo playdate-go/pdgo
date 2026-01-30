@@ -8,9 +8,6 @@ import (
 )
 
 func (p *Processor) processRun() error {
-	if err := p.processSim(); err != nil {
-		return err
-	}
 	simulatorBinPath := filepath.Join(os.Getenv("PLAYDATE_SDK_PATH"), "bin", "Playdate Simulator.app")
 
 	log.Printf("running '%s' in Playdate Simulator...", p.cfg.System.OutputPath)

@@ -68,11 +68,6 @@ func (system *System) Validate() error {
 	if !system.SimMode && !system.DeviceMode && !system.RunMode {
 		return fmt.Errorf("at least '-sim' or '-device' or '-run' must be defined")
 	}
-
-	if (system.SimMode || system.DeviceMode) && system.RunMode {
-		return fmt.Errorf("'-run' flag cannot be passed with '-sim' or '-device'")
-	}
-
 	if system.DeployMode && !system.DeviceMode {
 		return fmt.Errorf("'-deploy' requires '-device' flag")
 	}
