@@ -8,7 +8,7 @@ curl -fsSL https://raw.githubusercontent.com/playdate-go/pdgo/main/install.sh | 
 ```
 
 This installs **everything** you need:
-- `pdgoc` — the build tool
+- `pdgoc` - the build tool
 - `TinyGo` with Playdate support (for device builds)
 - Configures your PATH automatically
 
