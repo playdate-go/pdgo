@@ -163,7 +163,15 @@ func (p *Processor) ejectPlaydate(mountPath string) error {
 
 	if runtime.GOOS == "darwin" {
 		cmdName = "diskutil"
+		// Try normal eject first, then force if needed
 		args = []string{"eject", mountPath}
+		err := p.execCmd(cmdName, args)
+		if err != nil {
+			log.Println("normal eject failed, trying force unmount...")
+			args = []string{"unmount", "force", mountPath}
+			return p.execCmd(cmdName, args)
+		}
+		return nil
 	} else {
 		cmdName = "umount"
 		args = []string{mountPath}
