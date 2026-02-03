@@ -21,6 +21,15 @@ void DisableInterrupts(void) {
     __asm__ volatile ("cpsid i" ::: "memory");
 }
 
+// ============== Panic support stub ==============
+// TinyGo needs this for panic/recover. If panic actually happens, device hangs.
+// This allows code with potential panics (map, slice bounds) to compile.
+void tinygo_longjmp(void* buf) {
+    // Panic occurred - halt the device
+    pd->system->logToConsole("PANIC: tinygo_longjmp called - halting");
+    while(1) {} // Infinite loop
+}
+
 // ============== TinyGo Runtime Support ==============
 // Only needed for TinyGo device builds
 
@@ -895,11 +904,213 @@ void pd_lua_pushString(const char* str) {
 
 // ============== JSON API ==============
 
-// JSON parsing is callback-based, simplified version
-int pd_json_decode(const char* str) {
-    // JSON API requires callbacks, return 0 for now
-    (void)str;
-    return 0;
+// ---- JSON Encoder ----
+
+static json_encoder go_json_encoder;
+static char* json_output_buffer = NULL;
+static int json_output_size = 0;
+static int json_output_capacity = 0;
+
+static void json_write_to_buffer(void* userdata, const char* str, int len) {
+    (void)userdata;
+    if (!json_output_buffer) {
+        json_output_capacity = 1024;
+        json_output_buffer = pd->system->realloc(NULL, json_output_capacity);
+        json_output_size = 0;
+    }
+    while (json_output_size + len + 1 > json_output_capacity) {
+        json_output_capacity *= 2;
+        json_output_buffer = pd->system->realloc(json_output_buffer, json_output_capacity);
+    }
+    for (int i = 0; i < len; i++) {
+        json_output_buffer[json_output_size++] = str[i];
+    }
+    json_output_buffer[json_output_size] = '\0';
+}
+
+void pd_json_encoder_init(int pretty) {
+    if (pd) {
+        json_output_size = 0;
+        if (json_output_buffer) json_output_buffer[0] = '\0';
+        pd->json->initEncoder(&go_json_encoder, json_write_to_buffer, NULL, pretty);
+    }
+}
+
+void pd_json_encoder_startArray(void) {
+    if (go_json_encoder.startArray) go_json_encoder.startArray(&go_json_encoder);
+}
+
+void pd_json_encoder_addArrayMember(void) {
+    if (go_json_encoder.addArrayMember) go_json_encoder.addArrayMember(&go_json_encoder);
+}
+
+void pd_json_encoder_endArray(void) {
+    if (go_json_encoder.endArray) go_json_encoder.endArray(&go_json_encoder);
+}
+
+void pd_json_encoder_startTable(void) {
+    if (go_json_encoder.startTable) go_json_encoder.startTable(&go_json_encoder);
+}
+
+void pd_json_encoder_addTableMember(const char* name, int len) {
+    if (go_json_encoder.addTableMember) go_json_encoder.addTableMember(&go_json_encoder, name, len);
+}
+
+void pd_json_encoder_endTable(void) {
+    if (go_json_encoder.endTable) go_json_encoder.endTable(&go_json_encoder);
+}
+
+void pd_json_encoder_writeNull(void) {
+    if (go_json_encoder.writeNull) go_json_encoder.writeNull(&go_json_encoder);
+}
+
+void pd_json_encoder_writeFalse(void) {
+    if (go_json_encoder.writeFalse) go_json_encoder.writeFalse(&go_json_encoder);
+}
+
+void pd_json_encoder_writeTrue(void) {
+    if (go_json_encoder.writeTrue) go_json_encoder.writeTrue(&go_json_encoder);
+}
+
+void pd_json_encoder_writeInt(int num) {
+    if (go_json_encoder.writeInt) go_json_encoder.writeInt(&go_json_encoder, num);
+}
+
+void pd_json_encoder_writeDouble(double num) {
+    if (go_json_encoder.writeDouble) go_json_encoder.writeDouble(&go_json_encoder, num);
+}
+
+void pd_json_encoder_writeString(const char* str, int len) {
+    if (go_json_encoder.writeString) go_json_encoder.writeString(&go_json_encoder, str, len);
+}
+
+const char* pd_json_encoder_getOutput(void) {
+    return json_output_buffer ? json_output_buffer : "";
+}
+
+int pd_json_encoder_getOutputLen(void) {
+    return json_output_size;
+}
+
+void pd_json_encoder_free(void) {
+    if (json_output_buffer) {
+        pd->system->realloc(json_output_buffer, 0);
+        json_output_buffer = NULL;
+        json_output_size = 0;
+        json_output_capacity = 0;
+    }
+}
+
+// ---- JSON Decoder ----
+
+// Go trampolines for JSON callbacks
+extern void pdgo_json_decodeError(const char* error, int linenum);
+extern void pdgo_json_willDecodeSublist(const char* name, int type);
+extern int pdgo_json_shouldDecodeTableValueForKey(const char* key);
+extern void pdgo_json_didDecodeTableValue(const char* key, int type, int intVal, float floatVal, const char* strVal);
+extern int pdgo_json_shouldDecodeArrayValueAtIndex(int pos);
+extern void pdgo_json_didDecodeArrayValue(int pos, int type, int intVal, float floatVal, const char* strVal);
+extern void pdgo_json_didDecodeSublist(const char* name, int type);
+
+// Static decoder for Go callbacks
+static json_decoder go_json_decoder;
+
+static void json_decode_error_wrapper(json_decoder* decoder, const char* error, int linenum) {
+    (void)decoder;
+    pdgo_json_decodeError(error, linenum);
+}
+
+static void json_will_decode_sublist_wrapper(json_decoder* decoder, const char* name, json_value_type type) {
+    (void)decoder;
+    pdgo_json_willDecodeSublist(name, (int)type);
+}
+
+static int json_should_decode_table_value_wrapper(json_decoder* decoder, const char* key) {
+    (void)decoder;
+    return pdgo_json_shouldDecodeTableValueForKey(key);
+}
+
+static void json_did_decode_table_value_wrapper(json_decoder* decoder, const char* key, json_value value) {
+    (void)decoder;
+    int intVal = 0;
+    float floatVal = 0;
+    const char* strVal = NULL;
+    
+    if (value.type == kJSONInteger) intVal = value.data.intval;
+    else if (value.type == kJSONFloat) floatVal = value.data.floatval;
+    else if (value.type == kJSONString) strVal = value.data.stringval;
+    
+    pdgo_json_didDecodeTableValue(key, (int)value.type, intVal, floatVal, strVal);
+}
+
+static int json_should_decode_array_value_wrapper(json_decoder* decoder, int pos) {
+    (void)decoder;
+    return pdgo_json_shouldDecodeArrayValueAtIndex(pos);
+}
+
+static void json_did_decode_array_value_wrapper(json_decoder* decoder, int pos, json_value value) {
+    (void)decoder;
+    int intVal = 0;
+    float floatVal = 0;
+    const char* strVal = NULL;
+    
+    if (value.type == kJSONInteger) intVal = value.data.intval;
+    else if (value.type == kJSONFloat) floatVal = value.data.floatval;
+    else if (value.type == kJSONString) strVal = value.data.stringval;
+    
+    pdgo_json_didDecodeArrayValue(pos, (int)value.type, intVal, floatVal, strVal);
+}
+
+static void* json_did_decode_sublist_wrapper(json_decoder* decoder, const char* name, json_value_type type) {
+    (void)decoder;
+    pdgo_json_didDecodeSublist(name, (int)type);
+    return NULL;
+}
+
+int pd_json_decodeString(const char* jsonString) {
+    if (!pd) return 0;
+    
+    go_json_decoder.decodeError = json_decode_error_wrapper;
+    go_json_decoder.willDecodeSublist = json_will_decode_sublist_wrapper;
+    go_json_decoder.shouldDecodeTableValueForKey = json_should_decode_table_value_wrapper;
+    go_json_decoder.didDecodeTableValue = json_did_decode_table_value_wrapper;
+    go_json_decoder.shouldDecodeArrayValueAtIndex = json_should_decode_array_value_wrapper;
+    go_json_decoder.didDecodeArrayValue = json_did_decode_array_value_wrapper;
+    go_json_decoder.didDecodeSublist = json_did_decode_sublist_wrapper;
+    go_json_decoder.userdata = NULL;
+    go_json_decoder.returnString = 0;
+    
+    json_value outval;
+    return pd->json->decodeString(&go_json_decoder, jsonString, &outval);
+}
+
+// File-based JSON decode with reader
+static int json_file_read_wrapper(void* userdata, uint8_t* buf, int bufsize) {
+    SDFile* file = (SDFile*)userdata;
+    if (!pd || !file) return -1;
+    return pd->file->read(file, buf, bufsize);
+}
+
+int pd_json_decodeFile(void* file) {
+    if (!pd || !file) return 0;
+    
+    go_json_decoder.decodeError = json_decode_error_wrapper;
+    go_json_decoder.willDecodeSublist = json_will_decode_sublist_wrapper;
+    go_json_decoder.shouldDecodeTableValueForKey = json_should_decode_table_value_wrapper;
+    go_json_decoder.didDecodeTableValue = json_did_decode_table_value_wrapper;
+    go_json_decoder.shouldDecodeArrayValueAtIndex = json_should_decode_array_value_wrapper;
+    go_json_decoder.didDecodeArrayValue = json_did_decode_array_value_wrapper;
+    go_json_decoder.didDecodeSublist = json_did_decode_sublist_wrapper;
+    go_json_decoder.userdata = NULL;
+    go_json_decoder.returnString = 0;
+    
+    json_reader reader = {
+        .read = json_file_read_wrapper,
+        .userdata = file
+    };
+    
+    json_value outval;
+    return pd->json->decode(&go_json_decoder, reader, &outval);
 }
 
 // ============== Scoreboards API ==============

@@ -511,6 +511,8 @@ chmod +x examples/*/build.sh
 
 Each example includes a `build.sh` script that runs `pdgoc` with all necessary flags.
 
+**JSON High and Low Level Encoding and Decoding** -- [examples/json](examples/json) | [examples/json_lowlevel](examples/json_lowlevel)
+
 **Bach MIDI** -- [examples/bach_midi](examples/bach_midi)
 
 **3D Library** -- [examples/3d_library](examples/3d_library)
@@ -537,7 +539,7 @@ Each example includes a `build.sh` script that runs `pdgoc` with all necessary f
     - [ ] Sprite Collisions
     - [ ] Particles
     - [ ] Networking
-    - [ ] JSON
+    - [x] JSON
     - [ ] Exposure
     - [x] Bach.mid
     - [ ] Array
