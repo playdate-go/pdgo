@@ -8,6 +8,8 @@ echo "=============================="
 echo ""
 
 EXAMPLES=(
+    "json"
+    "json_lowlevel"
     "3d_library"
     "bach_midi"
     "spritegame"
