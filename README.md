@@ -511,7 +511,9 @@ chmod +x examples/*/build.sh
 
 Each example includes a `build.sh` script that runs `pdgoc` with all necessary flags.
 
-**Sprite Collisions** [examples/sprite_collisions](examples/sprite_collisions)
+**Particles** -- [examples/particles](examples/particles)
+
+**Sprite Collisions** -- [examples/sprite_collisions](examples/sprite_collisions)
 
 **Tilemap** -- [examples/tilemap](examples/tilemap)
 
