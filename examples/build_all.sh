@@ -17,6 +17,7 @@ EXAMPLES=(
     "bouncing_square"
     "go_logo"
     "hello_world"
+    "tilemap"
 )
 
 FAILED=()

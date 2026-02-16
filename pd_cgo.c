@@ -351,6 +351,46 @@ void* pd_gfx_getDisplayBufferBitmap(void) {
     return NULL;
 }
 
+// Tilemap
+void* pd_gfx_tilemap_new(void) {
+    if (pd && pd->graphics->tilemap) return pd->graphics->tilemap->newTilemap();
+    return NULL;
+}
+
+void pd_gfx_tilemap_free(void* tilemap) {
+    if (pd && pd->graphics->tilemap) pd->graphics->tilemap->freeTilemap(tilemap);
+}
+
+void pd_gfx_tilemap_setImageTable(void* tilemap, void* table) {
+    if (pd && pd->graphics->tilemap) pd->graphics->tilemap->setImageTable(tilemap, table);
+}
+
+void* pd_gfx_tilemap_getImageTable(void* tilemap) {
+    if (pd && pd->graphics->tilemap) return pd->graphics->tilemap->getImageTable(tilemap);
+    return NULL;
+}
+
+void pd_gfx_tilemap_setSize(void* tilemap, int tilesWide, int tilesHigh) {
+    if (pd && pd->graphics->tilemap) pd->graphics->tilemap->setSize(tilemap, tilesWide, tilesHigh);
+}
+
+void pd_gfx_tilemap_getSize(void* tilemap, int* tilesWide, int* tilesHigh) {
+    if (pd && pd->graphics->tilemap) pd->graphics->tilemap->getSize(tilemap, tilesWide, tilesHigh);
+}
+
+void pd_gfx_tilemap_setTileAtPosition(void* tilemap, int x, int y, uint16_t idx) {
+    if (pd && pd->graphics->tilemap) pd->graphics->tilemap->setTileAtPosition(tilemap, x, y, idx);
+}
+
+int pd_gfx_tilemap_getTileAtPosition(void* tilemap, int x, int y) {
+    if (pd && pd->graphics->tilemap) return pd->graphics->tilemap->getTileAtPosition(tilemap, x, y);
+    return 0;
+}
+
+void pd_gfx_tilemap_drawAtPoint(void* tilemap, float x, float y) {
+    if (pd && pd->graphics->tilemap) pd->graphics->tilemap->drawAtPoint(tilemap, x, y);
+}
+
 // ============== Sound API ==============
 
 void* pd_sound_getDefaultChannel(void) {

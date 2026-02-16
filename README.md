@@ -511,6 +511,8 @@ chmod +x examples/*/build.sh
 
 Each example includes a `build.sh` script that runs `pdgoc` with all necessary flags.
 
+**Tilemap** -- [examples/timemap](examples/tilemap)
+
 **JSON High and Low Level Encoding and Decoding** -- [examples/json](examples/json) | [examples/json_lowlevel](examples/json_lowlevel)
 
 **Bach MIDI** -- [examples/bach_midi](examples/bach_midi)
@@ -534,7 +536,7 @@ Each example includes a `build.sh` script that runs `pdgoc` with all necessary f
 - [ ] Rewrite to Go all official examples from SDK
     - [x] Hello World
     - [x] Life
-    - [ ] Tilemap
+    - [x] Tilemap
     - [x] Sprite Game
     - [ ] Sprite Collisions
     - [ ] Particles

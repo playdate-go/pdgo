@@ -49,6 +49,17 @@ void pd_gfx_freeBitmapTable(void* table);
 void* pd_gfx_loadBitmapTable(const char* path, const char** err);
 void* pd_gfx_getTableBitmap(void* table, int idx);
 
+// Tilemap
+void* pd_gfx_tilemap_new(void);
+void pd_gfx_tilemap_free(void* tilemap);
+void pd_gfx_tilemap_setImageTable(void* tilemap, void* table);
+void* pd_gfx_tilemap_getImageTable(void* tilemap);
+void pd_gfx_tilemap_setSize(void* tilemap, int tilesWide, int tilesHigh);
+void pd_gfx_tilemap_getSize(void* tilemap, int* tilesWide, int* tilesHigh);
+void pd_gfx_tilemap_setTileAtPosition(void* tilemap, int x, int y, uint16_t idx);
+int pd_gfx_tilemap_getTileAtPosition(void* tilemap, int x, int y);
+void pd_gfx_tilemap_drawAtPoint(void* tilemap, float x, float y);
+
 // Frame buffer
 uint8_t* pd_gfx_getFrame(void);
 uint8_t* pd_gfx_getDisplayFrame(void);
@@ -346,6 +357,87 @@ func (g *Graphics) GetTableBitmap(table *LCDBitmapTable, idx int) *LCDBitmap {
 		}
 	}
 	return nil
+}
+
+// ============== Tilemap ==============
+
+// LCDTileMap represents a tilemap
+type LCDTileMap struct {
+	ptr unsafe.Pointer
+}
+
+// NewTilemap creates a new tilemap
+func (g *Graphics) NewTilemap() *LCDTileMap {
+	ptr := C.pd_gfx_tilemap_new()
+	if ptr != nil {
+		return &LCDTileMap{ptr: ptr}
+	}
+	return nil
+}
+
+// Free frees the tilemap
+func (t *LCDTileMap) Free() {
+	if t != nil && t.ptr != nil {
+		C.pd_gfx_tilemap_free(t.ptr)
+		t.ptr = nil
+	}
+}
+
+// SetImageTable sets the image table for the tilemap
+func (t *LCDTileMap) SetImageTable(table *LCDBitmapTable) {
+	if t != nil && t.ptr != nil && table != nil && table.ptr != nil {
+		C.pd_gfx_tilemap_setImageTable(t.ptr, table.ptr)
+	}
+}
+
+// GetImageTable gets the image table from the tilemap
+func (t *LCDTileMap) GetImageTable() *LCDBitmapTable {
+	if t != nil && t.ptr != nil {
+		ptr := C.pd_gfx_tilemap_getImageTable(t.ptr)
+		if ptr != nil {
+			return &LCDBitmapTable{ptr: ptr}
+		}
+	}
+	return nil
+}
+
+// SetSize sets the size of the tilemap in tiles
+func (t *LCDTileMap) SetSize(tilesWide, tilesHigh int) {
+	if t != nil && t.ptr != nil {
+		C.pd_gfx_tilemap_setSize(t.ptr, C.int(tilesWide), C.int(tilesHigh))
+	}
+}
+
+// GetSize returns the size of the tilemap in tiles
+func (t *LCDTileMap) GetSize() (tilesWide, tilesHigh int) {
+	if t != nil && t.ptr != nil {
+		var wide, high C.int
+		C.pd_gfx_tilemap_getSize(t.ptr, &wide, &high)
+		return int(wide), int(high)
+	}
+	return 0, 0
+}
+
+// SetTileAtPosition sets the tile index at the given position
+func (t *LCDTileMap) SetTileAtPosition(x, y int, idx uint16) {
+	if t != nil && t.ptr != nil {
+		C.pd_gfx_tilemap_setTileAtPosition(t.ptr, C.int(x), C.int(y), C.uint16_t(idx))
+	}
+}
+
+// GetTileAtPosition gets the tile index at the given position
+func (t *LCDTileMap) GetTileAtPosition(x, y int) int {
+	if t != nil && t.ptr != nil {
+		return int(C.pd_gfx_tilemap_getTileAtPosition(t.ptr, C.int(x), C.int(y)))
+	}
+	return 0
+}
+
+// DrawAtPoint draws the tilemap at the given position
+func (t *LCDTileMap) DrawAtPoint(x, y float32) {
+	if t != nil && t.ptr != nil {
+		C.pd_gfx_tilemap_drawAtPoint(t.ptr, C.float(x), C.float(y))
+	}
 }
 
 // ============== Frame Buffer ==============
