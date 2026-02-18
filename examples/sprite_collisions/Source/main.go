@@ -6,6 +6,7 @@ package main
 
 import (
 	"math"
+	"unsafe"
 
 	"github.com/playdate-go/pdgo"
 )
@@ -24,6 +25,10 @@ var (
 	rayRotation float32 = 0.0
 
 	dt float32 = 0.05
+
+	// Store player pointers for comparison in callbacks
+	player1Ptr unsafe.Pointer
+	player2Ptr unsafe.Pointer
 
 	// XorShift random state
 	randState uint32 = 12345
@@ -54,6 +59,10 @@ func initGame() {
 	// Create two bouncing players
 	player1 = createPlayer(190, 223, 20, 20)
 	player2 = createPlayer(100, 40, 16, 16)
+
+	// Store pointers for comparison in callbacks
+	player1Ptr = player1.Ptr()
+	player2Ptr = player2.Ptr()
 
 	// Create border walls
 	borderSize := float32(5)
@@ -94,7 +103,9 @@ func createPlayer(x, y, w, h float32) *pdgo.LCDSprite {
 	pd.Sprite.SetCollideRect(sprite, collideRect)
 
 	// Set collision response to bounce
-	pd.Sprite.SetCollisionResponseFunction(sprite, playerCollisionResponse)
+	pd.Sprite.SetCollisionResponseFunction(sprite, func(_, _ *pdgo.LCDSprite) pdgo.SpriteCollisionResponseType {
+		return pdgo.CollisionTypeBounce
+	})
 
 	// Set draw function
 	pd.Sprite.SetDrawFunction(sprite, func(s *pdgo.LCDSprite, bounds, drawRect pdgo.PDRect) {
@@ -133,17 +144,13 @@ func createBlock(x, y, w, h float32) *pdgo.LCDSprite {
 	return sprite
 }
 
-// playerCollisionResponse returns bounce collision type
-func playerCollisionResponse(sprite, other *pdgo.LCDSprite) pdgo.SpriteCollisionResponseType {
-	return pdgo.CollisionTypeBounce
-}
-
 // updatePlayer updates a player sprite with collision detection
 func updatePlayer(sprite *pdgo.LCDSprite) {
 	var dx, dy float32
+	spritePtr := sprite.Ptr()
 
-	// Determine which player and get velocity
-	if sprite == player1 {
+	// Determine which player and get velocity by comparing pointers
+	if spritePtr == player1Ptr {
 		dx = p1VelocityX * dt
 		dy = p1VelocityY * dt
 	} else {
@@ -164,14 +171,14 @@ func updatePlayer(sprite *pdgo.LCDSprite) {
 	// Handle collisions - reverse velocity based on normal
 	for _, c := range collisions {
 		if c.Normal.X != 0 {
-			if sprite == player1 {
+			if spritePtr == player1Ptr {
 				p1VelocityX = -p1VelocityX
 			} else {
 				p2VelocityX = -p2VelocityX
 			}
 		}
 		if c.Normal.Y != 0 {
-			if sprite == player1 {
+			if spritePtr == player1Ptr {
 				p1VelocityY = -p1VelocityY
 			} else {
 				p2VelocityY = -p2VelocityY
@@ -194,8 +201,9 @@ func drawRays(player *pdgo.LCDSprite) {
 
 		// Draw collision points
 		for _, info := range results {
-			// Skip the player sprites
-			if info.Sprite == player1 || info.Sprite == player2 {
+			// Skip player sprites by comparing pointers
+			infoPtr := info.Sprite.Ptr()
+			if infoPtr == player1Ptr || infoPtr == player2Ptr {
 				continue
 			}
 
@@ -227,7 +235,7 @@ func drawRays(player *pdgo.LCDSprite) {
 
 // update is called every frame
 func update() int {
-	// Update and draw all sprites
+	// Update and draw all sprites (calls update callbacks)
 	pd.Sprite.UpdateAndDrawSprites()
 
 	// Draw raycasting from both players

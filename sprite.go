@@ -51,6 +51,41 @@ void* pd_sprite_overlappingSprites(void* sprite, int* len);
 void* pd_sprite_allOverlappingSprites(int* len);
 void pd_sprite_freeArray(void* arr);
 
+// Collision info accessors (portable across 32/64-bit)
+void* pd_sprite_getCollisionAt(void* arr, int index);
+void* pd_collision_getSprite(void* info);
+void* pd_collision_getOther(void* info);
+int pd_collision_getResponseType(void* info);
+int pd_collision_getOverlaps(void* info);
+float pd_collision_getTi(void* info);
+float pd_collision_getMoveX(void* info);
+float pd_collision_getMoveY(void* info);
+int pd_collision_getNormalX(void* info);
+int pd_collision_getNormalY(void* info);
+float pd_collision_getTouchX(void* info);
+float pd_collision_getTouchY(void* info);
+float pd_collision_getSpriteRectX(void* info);
+float pd_collision_getSpriteRectY(void* info);
+float pd_collision_getSpriteRectW(void* info);
+float pd_collision_getSpriteRectH(void* info);
+float pd_collision_getOtherRectX(void* info);
+float pd_collision_getOtherRectY(void* info);
+float pd_collision_getOtherRectW(void* info);
+float pd_collision_getOtherRectH(void* info);
+
+// Query info accessors
+void* pd_sprite_getQueryInfoAt(void* arr, int index);
+void* pd_queryInfo_getSprite(void* info);
+float pd_queryInfo_getTi1(void* info);
+float pd_queryInfo_getTi2(void* info);
+float pd_queryInfo_getEntryX(void* info);
+float pd_queryInfo_getEntryY(void* info);
+float pd_queryInfo_getExitX(void* info);
+float pd_queryInfo_getExitY(void* info);
+
+// Sprite array accessor
+void* pd_spriteArray_getAt(void* arr, int index);
+
 // Sprite callbacks
 void pd_sprite_setUpdateFunction(void* sprite);
 void pd_sprite_setDrawFunction(void* sprite);
@@ -62,6 +97,14 @@ import "unsafe"
 // Sprite represents a sprite object
 type Sprite struct {
 	ptr unsafe.Pointer
+}
+
+// Ptr returns the underlying C pointer for sprite comparison
+func (s *Sprite) Ptr() unsafe.Pointer {
+	if s == nil {
+		return nil
+	}
+	return s.ptr
 }
 
 // LCDSprite is an alias for Sprite (for API compatibility)
@@ -501,101 +544,81 @@ type SpriteCollisionInfo struct {
 }
 
 // parseCollisionInfo parses C SpriteCollisionInfo array into Go slice
+// Uses C accessor functions for portability across 32/64-bit architectures
 func parseCollisionInfo(arr unsafe.Pointer, len int) []SpriteCollisionInfo {
 	if arr == nil || len == 0 {
 		return nil
 	}
 
-	// C struct layout for SpriteCollisionInfo:
-	// sprite (8), other (8), responseType (4), overlaps (1), padding (3),
-	// ti (4), move (8), normal (8), touch (8), spriteRect (16), otherRect (16)
-	type cCollisionInfo struct {
-		sprite       unsafe.Pointer
-		other        unsafe.Pointer
-		responseType C.int
-		overlaps     C.uint8_t
-		_            [3]byte // padding
-		ti           C.float
-		moveX        C.float
-		moveY        C.float
-		normalX      C.int
-		normalY      C.int
-		touchX       C.float
-		touchY       C.float
-		spriteRectX  C.float
-		spriteRectY  C.float
-		spriteRectW  C.float
-		spriteRectH  C.float
-		otherRectX   C.float
-		otherRectY   C.float
-		otherRectW   C.float
-		otherRectH   C.float
-	}
-
-	cArr := (*[1024]cCollisionInfo)(arr)[:len]
 	infos := make([]SpriteCollisionInfo, len)
 
-	for i, c := range cArr {
+	for i := 0; i < len; i++ {
+		info := C.pd_sprite_getCollisionAt(arr, C.int(i))
 		infos[i] = SpriteCollisionInfo{
-			Sprite:       &LCDSprite{ptr: c.sprite},
-			Other:        &LCDSprite{ptr: c.other},
-			ResponseType: SpriteCollisionResponseType(c.responseType),
-			Overlaps:     c.overlaps != 0,
-			Ti:           float32(c.ti),
-			Move:         CollisionPoint{X: float32(c.moveX), Y: float32(c.moveY)},
-			Normal:       CollisionVector{X: int(c.normalX), Y: int(c.normalY)},
-			Touch:        CollisionPoint{X: float32(c.touchX), Y: float32(c.touchY)},
-			SpriteRect:   PDRect{X: float32(c.spriteRectX), Y: float32(c.spriteRectY), Width: float32(c.spriteRectW), Height: float32(c.spriteRectH)},
-			OtherRect:    PDRect{X: float32(c.otherRectX), Y: float32(c.otherRectY), Width: float32(c.otherRectW), Height: float32(c.otherRectH)},
+			Sprite:       &LCDSprite{ptr: C.pd_collision_getSprite(info)},
+			Other:        &LCDSprite{ptr: C.pd_collision_getOther(info)},
+			ResponseType: SpriteCollisionResponseType(C.pd_collision_getResponseType(info)),
+			Overlaps:     C.pd_collision_getOverlaps(info) != 0,
+			Ti:           float32(C.pd_collision_getTi(info)),
+			Move:         CollisionPoint{X: float32(C.pd_collision_getMoveX(info)), Y: float32(C.pd_collision_getMoveY(info))},
+			Normal:       CollisionVector{X: int(C.pd_collision_getNormalX(info)), Y: int(C.pd_collision_getNormalY(info))},
+			Touch:        CollisionPoint{X: float32(C.pd_collision_getTouchX(info)), Y: float32(C.pd_collision_getTouchY(info))},
+			SpriteRect: PDRect{
+				X:      float32(C.pd_collision_getSpriteRectX(info)),
+				Y:      float32(C.pd_collision_getSpriteRectY(info)),
+				Width:  float32(C.pd_collision_getSpriteRectW(info)),
+				Height: float32(C.pd_collision_getSpriteRectH(info)),
+			},
+			OtherRect: PDRect{
+				X:      float32(C.pd_collision_getOtherRectX(info)),
+				Y:      float32(C.pd_collision_getOtherRectY(info)),
+				Width:  float32(C.pd_collision_getOtherRectW(info)),
+				Height: float32(C.pd_collision_getOtherRectH(info)),
+			},
 		}
 	}
 	return infos
 }
 
 // parseSpriteQueryInfo parses C SpriteQueryInfo array into Go slice
+// Uses C accessor functions for portability across 32/64-bit architectures
 func parseSpriteQueryInfo(arr unsafe.Pointer, len int) []SpriteQueryInfo {
 	if arr == nil || len == 0 {
 		return nil
 	}
 
-	// C struct layout for SpriteQueryInfo:
-	// sprite (8), ti1 (4), ti2 (4), entryPoint (8), exitPoint (8)
-	type cQueryInfo struct {
-		sprite unsafe.Pointer
-		ti1    C.float
-		ti2    C.float
-		entryX C.float
-		entryY C.float
-		exitX  C.float
-		exitY  C.float
-	}
-
-	cArr := (*[1024]cQueryInfo)(arr)[:len]
 	infos := make([]SpriteQueryInfo, len)
 
-	for i, c := range cArr {
+	for i := 0; i < len; i++ {
+		info := C.pd_sprite_getQueryInfoAt(arr, C.int(i))
 		infos[i] = SpriteQueryInfo{
-			Sprite:     &LCDSprite{ptr: c.sprite},
-			Ti1:        float32(c.ti1),
-			Ti2:        float32(c.ti2),
-			EntryPoint: CollisionPoint{X: float32(c.entryX), Y: float32(c.entryY)},
-			ExitPoint:  CollisionPoint{X: float32(c.exitX), Y: float32(c.exitY)},
+			Sprite: &LCDSprite{ptr: C.pd_queryInfo_getSprite(info)},
+			Ti1:    float32(C.pd_queryInfo_getTi1(info)),
+			Ti2:    float32(C.pd_queryInfo_getTi2(info)),
+			EntryPoint: CollisionPoint{
+				X: float32(C.pd_queryInfo_getEntryX(info)),
+				Y: float32(C.pd_queryInfo_getEntryY(info)),
+			},
+			ExitPoint: CollisionPoint{
+				X: float32(C.pd_queryInfo_getExitX(info)),
+				Y: float32(C.pd_queryInfo_getExitY(info)),
+			},
 		}
 	}
 	return infos
 }
 
 // parseSpriteArray parses C LCDSprite* array into Go slice
+// Uses C accessor function for portability across 32/64-bit architectures
 func parseSpriteArray(arr unsafe.Pointer, len int) []*LCDSprite {
 	if arr == nil || len == 0 {
 		return nil
 	}
 
-	ptrArr := (*[1024]unsafe.Pointer)(arr)[:len]
 	sprites := make([]*LCDSprite, len)
 
-	for i, ptr := range ptrArr {
-		sprites[i] = &LCDSprite{ptr: ptr}
+	for i := 0; i < len; i++ {
+		sprites[i] = &LCDSprite{ptr: C.pd_spriteArray_getAt(arr, C.int(i))}
 	}
 	return sprites
 }

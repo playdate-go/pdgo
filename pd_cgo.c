@@ -931,6 +931,128 @@ void pd_sprite_freeArray(void* arr) {
     if (pd && arr) pd->system->realloc(arr, 0);
 }
 
+// Collision info accessors - portable way to read C struct from Go
+void* pd_sprite_getCollisionAt(void* arr, int index) {
+    SpriteCollisionInfo* info = (SpriteCollisionInfo*)arr;
+    return &info[index];
+}
+
+void* pd_collision_getSprite(void* info) {
+    return ((SpriteCollisionInfo*)info)->sprite;
+}
+
+void* pd_collision_getOther(void* info) {
+    return ((SpriteCollisionInfo*)info)->other;
+}
+
+int pd_collision_getResponseType(void* info) {
+    return (int)((SpriteCollisionInfo*)info)->responseType;
+}
+
+int pd_collision_getOverlaps(void* info) {
+    return (int)((SpriteCollisionInfo*)info)->overlaps;
+}
+
+float pd_collision_getTi(void* info) {
+    return ((SpriteCollisionInfo*)info)->ti;
+}
+
+float pd_collision_getMoveX(void* info) {
+    return ((SpriteCollisionInfo*)info)->move.x;
+}
+
+float pd_collision_getMoveY(void* info) {
+    return ((SpriteCollisionInfo*)info)->move.y;
+}
+
+int pd_collision_getNormalX(void* info) {
+    return ((SpriteCollisionInfo*)info)->normal.x;
+}
+
+int pd_collision_getNormalY(void* info) {
+    return ((SpriteCollisionInfo*)info)->normal.y;
+}
+
+float pd_collision_getTouchX(void* info) {
+    return ((SpriteCollisionInfo*)info)->touch.x;
+}
+
+float pd_collision_getTouchY(void* info) {
+    return ((SpriteCollisionInfo*)info)->touch.y;
+}
+
+float pd_collision_getSpriteRectX(void* info) {
+    return ((SpriteCollisionInfo*)info)->spriteRect.x;
+}
+
+float pd_collision_getSpriteRectY(void* info) {
+    return ((SpriteCollisionInfo*)info)->spriteRect.y;
+}
+
+float pd_collision_getSpriteRectW(void* info) {
+    return ((SpriteCollisionInfo*)info)->spriteRect.width;
+}
+
+float pd_collision_getSpriteRectH(void* info) {
+    return ((SpriteCollisionInfo*)info)->spriteRect.height;
+}
+
+float pd_collision_getOtherRectX(void* info) {
+    return ((SpriteCollisionInfo*)info)->otherRect.x;
+}
+
+float pd_collision_getOtherRectY(void* info) {
+    return ((SpriteCollisionInfo*)info)->otherRect.y;
+}
+
+float pd_collision_getOtherRectW(void* info) {
+    return ((SpriteCollisionInfo*)info)->otherRect.width;
+}
+
+float pd_collision_getOtherRectH(void* info) {
+    return ((SpriteCollisionInfo*)info)->otherRect.height;
+}
+
+// Query info accessors
+void* pd_sprite_getQueryInfoAt(void* arr, int index) {
+    SpriteQueryInfo* info = (SpriteQueryInfo*)arr;
+    return &info[index];
+}
+
+void* pd_queryInfo_getSprite(void* info) {
+    return ((SpriteQueryInfo*)info)->sprite;
+}
+
+float pd_queryInfo_getTi1(void* info) {
+    return ((SpriteQueryInfo*)info)->ti1;
+}
+
+float pd_queryInfo_getTi2(void* info) {
+    return ((SpriteQueryInfo*)info)->ti2;
+}
+
+float pd_queryInfo_getEntryX(void* info) {
+    return ((SpriteQueryInfo*)info)->entryPoint.x;
+}
+
+float pd_queryInfo_getEntryY(void* info) {
+    return ((SpriteQueryInfo*)info)->entryPoint.y;
+}
+
+float pd_queryInfo_getExitX(void* info) {
+    return ((SpriteQueryInfo*)info)->exitPoint.x;
+}
+
+float pd_queryInfo_getExitY(void* info) {
+    return ((SpriteQueryInfo*)info)->exitPoint.y;
+}
+
+// Sprite array accessor
+void* pd_spriteArray_getAt(void* arr, int index) {
+    LCDSprite** sprites = (LCDSprite**)arr;
+    return sprites[index];
+}
+
 // ============== Lua API ==============
 
 int pd_lua_getArgCount(void) {

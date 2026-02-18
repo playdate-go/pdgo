@@ -23,6 +23,13 @@
 curl -fsSL https://raw.githubusercontent.com/playdate-go/pdgo/main/install.sh | bash
 ```
 
+```bash
+# test 
+chmod +x examples/build_all.sh 
+chmod +x examples/*/build.sh
+./examples/build_all.sh
+```
+
 This installs **everything** you need:
 - `pdgoc` - the build tool
 - Custom `TinyGo` with Playdate support (for device builds)
