@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <stdbool.h>
 #include "pd_api.h"
 
 // ============== Global PlaydateAPI pointer ==============
@@ -1372,6 +1373,273 @@ void pd_scoreboards_getScores(const char* boardID, void* callback) {
 
 void pd_scoreboards_freeScoresList(void* scores) {
     if (pd && pd->scoreboards) pd->scoreboards->freeScoresList(scores);
+}
+
+// ============== Network API ==============
+
+// Go trampolines for network callbacks
+extern void pdgo_http_access_callback(int allowed, void* userdata);
+extern void pdgo_http_header_callback(void* conn, const char* key, const char* value);
+extern void pdgo_http_headers_read_callback(void* conn);
+extern void pdgo_http_response_callback(void* conn);
+extern void pdgo_http_request_complete_callback(void* conn);
+extern void pdgo_http_connection_closed_callback(void* conn);
+extern void pdgo_tcp_access_callback(int allowed, void* userdata);
+extern void pdgo_tcp_open_callback(void* conn, int err, void* userdata);
+extern void pdgo_tcp_closed_callback(void* conn, int err);
+
+// C wrappers for HTTP callbacks
+static void http_access_callback_wrapper(bool allowed, void* userdata) {
+    pdgo_http_access_callback(allowed ? 1 : 0, userdata);
+}
+
+static void http_header_callback_wrapper(HTTPConnection* conn, const char* key, const char* value) {
+    pdgo_http_header_callback(conn, key, value);
+}
+
+static void http_headers_read_callback_wrapper(HTTPConnection* conn) {
+    pdgo_http_headers_read_callback(conn);
+}
+
+static void http_response_callback_wrapper(HTTPConnection* conn) {
+    pdgo_http_response_callback(conn);
+}
+
+static void http_request_complete_callback_wrapper(HTTPConnection* conn) {
+    pdgo_http_request_complete_callback(conn);
+}
+
+static void http_connection_closed_callback_wrapper(HTTPConnection* conn) {
+    pdgo_http_connection_closed_callback(conn);
+}
+
+// C wrappers for TCP callbacks
+static void tcp_access_callback_wrapper(bool allowed, void* userdata) {
+    pdgo_tcp_access_callback(allowed ? 1 : 0, userdata);
+}
+
+static void tcp_open_callback_wrapper(TCPConnection* conn, PDNetErr err, void* userdata) {
+    pdgo_tcp_open_callback(conn, (int)err, userdata);
+}
+
+static void tcp_closed_callback_wrapper(TCPConnection* conn, PDNetErr err) {
+    pdgo_tcp_closed_callback(conn, (int)err);
+}
+
+// HTTP API
+int pd_http_requestAccess(const char* server, int port, int usessl, const char* purpose, void* userdata) {
+    if (pd && pd->network && pd->network->http)
+        return pd->network->http->requestAccess(server, port, usessl, purpose, http_access_callback_wrapper, userdata);
+    return 0;
+}
+
+void* pd_http_newConnection(const char* server, int port, int usessl) {
+    if (pd && pd->network && pd->network->http)
+        return pd->network->http->newConnection(server, port, usessl);
+    return NULL;
+}
+
+void pd_http_retain(void* conn) {
+    if (pd && pd->network && pd->network->http)
+        pd->network->http->retain(conn);
+}
+
+void pd_http_release(void* conn) {
+    if (pd && pd->network && pd->network->http)
+        pd->network->http->release(conn);
+}
+
+void pd_http_setConnectTimeout(void* conn, int ms) {
+    if (pd && pd->network && pd->network->http)
+        pd->network->http->setConnectTimeout(conn, ms);
+}
+
+void pd_http_setKeepAlive(void* conn, int keepalive) {
+    if (pd && pd->network && pd->network->http)
+        pd->network->http->setKeepAlive(conn, keepalive);
+}
+
+void pd_http_setByteRange(void* conn, int start, int end) {
+    if (pd && pd->network && pd->network->http)
+        pd->network->http->setByteRange(conn, start, end);
+}
+
+int pd_http_get(void* conn, const char* path, const char* headers, int headerlen) {
+    if (pd && pd->network && pd->network->http)
+        return pd->network->http->get(conn, path, headers, (size_t)headerlen);
+    return -1;
+}
+
+int pd_http_post(void* conn, const char* path, const char* headers, int headerlen, const char* body, int bodylen) {
+    if (pd && pd->network && pd->network->http)
+        return pd->network->http->post(conn, path, headers, (size_t)headerlen, body, (size_t)bodylen);
+    return -1;
+}
+
+int pd_http_query(void* conn, const char* method, const char* path, const char* headers, int headerlen, const char* body, int bodylen) {
+    if (pd && pd->network && pd->network->http)
+        return pd->network->http->query(conn, method, path, headers, (size_t)headerlen, body, (size_t)bodylen);
+    return -1;
+}
+
+int pd_http_getError(void* conn) {
+    if (pd && pd->network && pd->network->http)
+        return pd->network->http->getError(conn);
+    return -1;
+}
+
+void pd_http_getProgress(void* conn, int* read, int* total) {
+    if (pd && pd->network && pd->network->http)
+        pd->network->http->getProgress(conn, read, total);
+}
+
+int pd_http_getResponseStatus(void* conn) {
+    if (pd && pd->network && pd->network->http)
+        return pd->network->http->getResponseStatus(conn);
+    return 0;
+}
+
+int pd_http_getBytesAvailable(void* conn) {
+    if (pd && pd->network && pd->network->http)
+        return (int)pd->network->http->getBytesAvailable(conn);
+    return 0;
+}
+
+void pd_http_setReadTimeout(void* conn, int ms) {
+    if (pd && pd->network && pd->network->http)
+        pd->network->http->setReadTimeout(conn, ms);
+}
+
+void pd_http_setReadBufferSize(void* conn, int bytes) {
+    if (pd && pd->network && pd->network->http)
+        pd->network->http->setReadBufferSize(conn, bytes);
+}
+
+int pd_http_read(void* conn, void* buf, int buflen) {
+    if (pd && pd->network && pd->network->http)
+        return pd->network->http->read(conn, buf, (unsigned int)buflen);
+    return 0;
+}
+
+void pd_http_close(void* conn) {
+    if (pd && pd->network && pd->network->http)
+        pd->network->http->close(conn);
+}
+
+void pd_http_setHeaderReceivedCallback(void* conn) {
+    if (pd && pd->network && pd->network->http)
+        pd->network->http->setHeaderReceivedCallback(conn, http_header_callback_wrapper);
+}
+
+void pd_http_setHeadersReadCallback(void* conn) {
+    if (pd && pd->network && pd->network->http)
+        pd->network->http->setHeadersReadCallback(conn, http_headers_read_callback_wrapper);
+}
+
+void pd_http_setResponseCallback(void* conn) {
+    if (pd && pd->network && pd->network->http)
+        pd->network->http->setResponseCallback(conn, http_response_callback_wrapper);
+}
+
+void pd_http_setRequestCompleteCallback(void* conn) {
+    if (pd && pd->network && pd->network->http)
+        pd->network->http->setRequestCompleteCallback(conn, http_request_complete_callback_wrapper);
+}
+
+void pd_http_setConnectionClosedCallback(void* conn) {
+    if (pd && pd->network && pd->network->http)
+        pd->network->http->setConnectionClosedCallback(conn, http_connection_closed_callback_wrapper);
+}
+
+// TCP API
+int pd_tcp_requestAccess(const char* server, int port, int usessl, const char* purpose, void* userdata) {
+    if (pd && pd->network && pd->network->tcp)
+        return pd->network->tcp->requestAccess(server, port, usessl, purpose, tcp_access_callback_wrapper, userdata);
+    return 0;
+}
+
+void* pd_tcp_newConnection(const char* server, int port, int usessl) {
+    if (pd && pd->network && pd->network->tcp)
+        return pd->network->tcp->newConnection(server, port, usessl);
+    return NULL;
+}
+
+void pd_tcp_retain(void* conn) {
+    if (pd && pd->network && pd->network->tcp)
+        pd->network->tcp->retain(conn);
+}
+
+void pd_tcp_release(void* conn) {
+    if (pd && pd->network && pd->network->tcp)
+        pd->network->tcp->release(conn);
+}
+
+int pd_tcp_getError(void* conn) {
+    if (pd && pd->network && pd->network->tcp)
+        return pd->network->tcp->getError(conn);
+    return -1;
+}
+
+void pd_tcp_setConnectTimeout(void* conn, int ms) {
+    if (pd && pd->network && pd->network->tcp)
+        pd->network->tcp->setConnectTimeout(conn, ms);
+}
+
+int pd_tcp_open(void* conn, void* userdata) {
+    if (pd && pd->network && pd->network->tcp)
+        return pd->network->tcp->open(conn, tcp_open_callback_wrapper, userdata);
+    return -1;
+}
+
+int pd_tcp_close(void* conn) {
+    if (pd && pd->network && pd->network->tcp)
+        return pd->network->tcp->close(conn);
+    return -1;
+}
+
+void pd_tcp_setConnectionClosedCallback(void* conn) {
+    if (pd && pd->network && pd->network->tcp)
+        pd->network->tcp->setConnectionClosedCallback(conn, tcp_closed_callback_wrapper);
+}
+
+void pd_tcp_setReadTimeout(void* conn, int ms) {
+    if (pd && pd->network && pd->network->tcp)
+        pd->network->tcp->setReadTimeout(conn, ms);
+}
+
+void pd_tcp_setReadBufferSize(void* conn, int bytes) {
+    if (pd && pd->network && pd->network->tcp)
+        pd->network->tcp->setReadBufferSize(conn, bytes);
+}
+
+int pd_tcp_getBytesAvailable(void* conn) {
+    if (pd && pd->network && pd->network->tcp)
+        return (int)pd->network->tcp->getBytesAvailable(conn);
+    return 0;
+}
+
+int pd_tcp_read(void* conn, void* buf, int length) {
+    if (pd && pd->network && pd->network->tcp)
+        return pd->network->tcp->read(conn, buf, (size_t)length);
+    return 0;
+}
+
+int pd_tcp_write(void* conn, const void* buf, int length) {
+    if (pd && pd->network && pd->network->tcp)
+        return pd->network->tcp->write(conn, buf, (size_t)length);
+    return 0;
+}
+
+// Network status
+int pd_network_getStatus(void) {
+    if (pd && pd->network)
+        return (int)pd->network->getStatus();
+    return 0;
+}
+
+void pd_network_setEnabled(int flag, void* callback) {
+    if (pd && pd->network)
+        pd->network->setEnabled(flag, (void (*)(PDNetErr))callback);
 }
 
 // ============== Sprite Callbacks ==============
