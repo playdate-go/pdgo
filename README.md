@@ -553,7 +553,7 @@ Each example includes a `build.sh` script that runs `pdgoc` with all necessary f
     - [x] Sprite Game
     - [x] Sprite Collisions
     - [x] Particles
-    - [ ] Networking
+    - [x] Networking
     - [x] JSON
     - [x] Exposure
     - [x] Bach.mid
