@@ -50,6 +50,23 @@ func GetPdcPath() (string, error) {
 	return path.Join(sdkPath, pdcPath), nil
 }
 
+func GetSimulatorPath() (string, error) {
+	sdkPath, err := GetPlayDateSDKPath()
+	if err != nil {
+		return "", err
+	}
+
+	simulatorPath := "bin/PlaydateSimulator"
+	switch runtime.GOOS {
+	case "darwin":
+		simulatorPath = "bin/Playdate Simulator.app/Contents/MacOS/Playdate Simulator"
+	case "windows":
+		simulatorPath = "bin/PlaydateSimulator.exe"
+	}
+
+	return path.Join(sdkPath, simulatorPath), nil
+}
+
 func GetLsExec() string {
 	if runtime.GOOS == "windows" {
 		return ""
