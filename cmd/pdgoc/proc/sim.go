@@ -7,6 +7,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+
+	"github.com/playdate-go/pdgo/cmd/pdgoc/utils"
 )
 
 func (p *Processor) processSim() error {
@@ -29,13 +31,21 @@ func (p *Processor) processSim() error {
 
 	log.Println("building Playdate Application...")
 
-	if err = p.execCmd("pdc", []string{"-k", "-s", "-v", sourcePath, p.cfg.System.OutputPath}); err != nil {
+	pdcPath, err := utils.GetPdcPath()
+	if err != nil {
 		return err
 	}
 
-	log.Printf("'%s' content:", p.cfg.System.OutputPath)
-	if err = p.execCmd("ls", []string{"-l", p.cfg.System.OutputPath}); err != nil {
+	if err = p.execCmd(pdcPath, []string{"-k", "-s", "-v", sourcePath, p.cfg.System.OutputPath}); err != nil {
 		return err
+	}
+
+	if lsExec := utils.GetLsExec(); lsExec != "" {
+		log.Printf("'%s' content:", p.cfg.System.OutputPath)
+
+		if err = p.execCmd(lsExec, []string{"-l", p.cfg.System.OutputPath}); err != nil {
+			return err
+		}
 	}
 
 	log.Println("Playdate Application has been successfully built!")
@@ -49,7 +59,7 @@ func (p *Processor) processSim() error {
 }
 
 func (p *Processor) execBuildGoHostLib() (string, error) {
-	libExt, err := p.resolveHostLibExt()
+	libExt, err := utils.HostLibExt()
 	if err != nil {
 		return "", err
 	}
@@ -88,8 +98,10 @@ func (p *Processor) execBuildGoHostLib() (string, error) {
 		return "", err
 	}
 
-	if err = p.execCmd("file", []string{libPath}); err != nil {
-		return "", err
+	if runtime.GOOS != "windows" {
+		if err = p.execCmd("file", []string{libPath}); err != nil {
+			return "", err
+		}
 	}
 
 	pdexHPath := filepath.Join(goSourcePath, "pdex.h")
@@ -104,21 +116,10 @@ func (p *Processor) execBuildGoHostLib() (string, error) {
 	return libPath, nil
 }
 
-func (p *Processor) resolveHostLibExt() (string, error) {
-	switch runtime.GOOS {
-	case "linux":
-		return "so", nil
-	case "darwin":
-		return "dylib", nil
-	default:
-		return "", fmt.Errorf("unsupported platform")
-	}
-}
-
 func (p *Processor) execGoBuildSim(libPath string) error {
-	sdkPath := os.Getenv("PLAYDATE_SDK_PATH")
-	if sdkPath == "" {
-		return fmt.Errorf("PLAYDATE_SDK_PATH environment variable is not set")
+	sdkPath, err := utils.GetPlayDateSDKPath()
+	if err != nil {
+		return err
 	}
 
 	cgoFlags := fmt.Sprintf("-I%s/C_API -DTARGET_EXTENSION=1", sdkPath)

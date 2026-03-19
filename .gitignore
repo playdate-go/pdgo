@@ -16,3 +16,5 @@ pdex.h
 .DS_Store
 
 cmd/pdgoc/pdgoc
+
+examples/*/build

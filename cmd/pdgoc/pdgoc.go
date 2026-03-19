@@ -3,15 +3,17 @@ package main
 import (
 	"errors"
 	"fmt"
-	"github.com/Masterminds/semver/v3"
-	"github.com/playdate-go/pdgo/cmd/pdgoc/config"
-	"github.com/playdate-go/pdgo/cmd/pdgoc/pdxinfo"
-	"github.com/playdate-go/pdgo/cmd/pdgoc/proc"
 	"log"
 	"os"
 	"path/filepath"
 	"runtime"
 	"time"
+
+	"github.com/Masterminds/semver/v3"
+	"github.com/playdate-go/pdgo/cmd/pdgoc/config"
+	"github.com/playdate-go/pdgo/cmd/pdgoc/pdxinfo"
+	"github.com/playdate-go/pdgo/cmd/pdgoc/proc"
+	"github.com/playdate-go/pdgo/cmd/pdgoc/utils"
 )
 
 var Version string
@@ -24,13 +26,12 @@ func main() {
 	log.Printf("commit: %s", Commit)
 	log.Printf("date: %s", Date)
 
-	if runtime.GOOS == "windows" {
-		log.Fatal("currently this OS is unsupported: windows, supported: Linux, MacOS")
-	}
-
 	if err := checkSDKPathAndAPI(); err != nil {
 		log.Fatal(err)
 	}
+
+	// ensure CGO is enabled
+	_ = os.Setenv("CGO_ENABLED", "1")
 
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -80,11 +81,15 @@ func main() {
 }
 
 func checkSDKPathAndAPI() error {
-	if os.Getenv("PLAYDATE_SDK_PATH") == "" {
+	if os.Getenv("PLAYDATE_SDK_PATH") == "" && runtime.GOOS != "windows" {
 		return errors.New("PLAYDATE_SDK_PATH environment variable not set")
 	}
 
-	sdkPath := os.Getenv("PLAYDATE_SDK_PATH")
+	sdkPath, err := utils.GetPlayDateSDKPath()
+	if err != nil {
+		return fmt.Errorf("failed to get sdkPath: %w", err)
+	}
+
 	versionFilePath := filepath.Join(sdkPath, "VERSION.txt")
 
 	if stat, err := os.Stat(sdkPath); err == nil && stat.IsDir() {
