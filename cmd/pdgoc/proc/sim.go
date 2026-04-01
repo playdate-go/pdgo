@@ -104,7 +104,7 @@ func (p *Processor) execBuildGoHostLib() (string, error) {
 }
 
 func (p *Processor) execGoBuildSim(libPath string) error {
-	sdkPath, err := utils.GetPlayDateSDKPath()
+	sdkPath, err := utils.GetPlaydateSDKPath()
 	if err != nil {
 		return err
 	}

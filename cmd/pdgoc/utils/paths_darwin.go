@@ -6,7 +6,7 @@ import (
 	"path"
 )
 
-func GetPlayDateSDKFallbackPath() (string, error) {
+func GetPlaydateSDKFallbackPath() (string, error) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return "", fmt.Errorf("failed to determine fallback PlaydateSDK path: %w", err)
@@ -16,7 +16,7 @@ func GetPlayDateSDKFallbackPath() (string, error) {
 }
 
 func GetSimulatorPath() (string, error) {
-	sdkPath, err := GetPlayDateSDKPath()
+	sdkPath, err := GetPlaydateSDKPath()
 	if err != nil {
 		return "", err
 	}

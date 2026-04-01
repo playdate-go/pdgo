@@ -7,12 +7,12 @@ import (
 	"path"
 )
 
-func GetPlayDateSDKFallbackPath() (string, error) {
+func GetPlaydateSDKFallbackPath() (string, error) {
 	return "", ErrNoFallbackValue
 }
 
 func GetSimulatorPath() (string, error) {
-	sdkPath, err := GetPlayDateSDKPath()
+	sdkPath, err := GetPlaydateSDKPath()
 	if err != nil {
 		return "", err
 	}

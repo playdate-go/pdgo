@@ -10,22 +10,22 @@ import (
 	"github.com/Masterminds/semver/v3"
 )
 
-func GetPlayDateSDKPath() (string, error) {
-	envVar := os.Getenv(PlayDateSDKPathEnvVar)
+func GetPlaydateSDKPath() (string, error) {
+	envVar := os.Getenv(PlaydateSDKPathEnvVar)
 
 	if envVar != "" {
 		return envVar, nil
 	}
 
-	fallback, err := GetPlayDateSDKFallbackPath()
+	fallback, err := GetPlaydateSDKFallbackPath()
 	if err != nil {
-		return "", ErrPlayDateSDKPathNotSet
+		return "", ErrPlaydateSDKPathNotSet
 	}
 
 	return fallback, nil
 }
 
-func CheckPlayDateSDKVersion(sdkPath string) error {
+func CheckPlaydateSDKVersion(sdkPath string) error {
 	versionFilePath := filepath.Join(sdkPath, "VERSION.txt")
 	if stat, err := os.Stat(sdkPath); err == nil && stat.IsDir() {
 		log.Printf("auto-found SDK path: %s", sdkPath)
@@ -55,7 +55,7 @@ func CheckPlayDateSDKVersion(sdkPath string) error {
 }
 
 func GetPdcPath() (string, error) {
-	sdkPath, err := GetPlayDateSDKPath()
+	sdkPath, err := GetPlaydateSDKPath()
 	if err != nil {
 		return "", err
 	}

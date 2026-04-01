@@ -28,12 +28,12 @@ func main() {
 		log.Print("windows support is experimental, only -run and -sim flags are supported")
 	}
 
-	sdkPath, err := utils.GetPlayDateSDKPath()
+	sdkPath, err := utils.GetPlaydateSDKPath()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	err = utils.CheckPlayDateSDKVersion(sdkPath)
+	err = utils.CheckPlaydateSDKVersion(sdkPath)
 	if err != nil {
 		log.Fatal(err)
 	}
