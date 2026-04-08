@@ -1,17 +1,17 @@
 package main
 
 import (
-	"errors"
 	"fmt"
-	"github.com/Masterminds/semver/v3"
-	"github.com/playdate-go/pdgo/cmd/pdgoc/config"
-	"github.com/playdate-go/pdgo/cmd/pdgoc/pdxinfo"
-	"github.com/playdate-go/pdgo/cmd/pdgoc/proc"
 	"log"
 	"os"
 	"path/filepath"
 	"runtime"
 	"time"
+
+	"github.com/playdate-go/pdgo/cmd/pdgoc/config"
+	"github.com/playdate-go/pdgo/cmd/pdgoc/pdxinfo"
+	"github.com/playdate-go/pdgo/cmd/pdgoc/proc"
+	"github.com/playdate-go/pdgo/cmd/pdgoc/utils"
 )
 
 var Version string
@@ -25,10 +25,16 @@ func main() {
 	log.Printf("date: %s", Date)
 
 	if runtime.GOOS == "windows" {
-		log.Fatal("currently this OS is unsupported: windows, supported: Linux, MacOS")
+		log.Print("windows support is experimental, only -run and -sim flags are supported")
 	}
 
-	if err := checkSDKPathAndAPI(); err != nil {
+	sdkPath, err := utils.GetPlaydateSDKPath()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = utils.CheckPlaydateSDKVersion(sdkPath)
+	if err != nil {
 		log.Fatal(err)
 	}
 
@@ -77,41 +83,6 @@ func main() {
 	log.Printf("tmp file has been successfully removed! : %s", pdxInfoPath)
 
 	log.Printf("project has been sucessfully executed in %s", time.Since(startTime))
-}
-
-func checkSDKPathAndAPI() error {
-	if os.Getenv("PLAYDATE_SDK_PATH") == "" {
-		return errors.New("PLAYDATE_SDK_PATH environment variable not set")
-	}
-
-	sdkPath := os.Getenv("PLAYDATE_SDK_PATH")
-	versionFilePath := filepath.Join(sdkPath, "VERSION.txt")
-
-	if stat, err := os.Stat(sdkPath); err == nil && stat.IsDir() {
-		log.Printf("auto-found SDK path: %s", sdkPath)
-
-		b, err := os.ReadFile(versionFilePath)
-		if err != nil {
-			return err
-		}
-		verStr := string(b)
-		verStr = verStr[:len(verStr)-1]
-
-		current, err := semver.NewVersion(verStr)
-		if err != nil {
-			return fmt.Errorf("invalid semver in VERSION.txt '%s': %v", verStr, err)
-		}
-
-		minReq, _ := semver.NewVersion("3.0.2")
-
-		if current.LessThan(minReq) {
-			return fmt.Errorf("current SDK version %s is less than required 3.0.2", current.String())
-		}
-
-		return nil
-	}
-
-	return fmt.Errorf("failed to check SDK path")
 }
 
 func checkSourcePath(cwd string) (string, error) {
