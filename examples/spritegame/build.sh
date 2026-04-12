@@ -1,6 +1,15 @@
 #!/bin/bash
 # Minimal build script - all complexity is handled by pdgoc
 
+# Set CGO flags for simulator build
+export CGO_CFLAGS="-I$PLAYDATE_SDK_PATH/C_API -DTARGET_EXTENSION=1"
+
+# Copy images from SDK's Sprite Game example if not already present
+if [ ! -d "Source/images" ]; then
+  echo "Copying images from Playdate SDK..."
+  cp -r "$PLAYDATE_SDK_PATH/C_API/Examples/Sprite Game/Source/images" Source/
+fi
+
 pdgoc -sim -device \
   -name="SpriteGame" \
   -author="PdGo" \
