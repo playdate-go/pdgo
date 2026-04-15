@@ -579,6 +579,7 @@ Each example includes a `build.sh` script that runs `pdgoc` with all necessary f
 - [ ] Make sure Lua interoperability works
 - [ ] Make sure C interoperability works
 - [X] Write documentation for API bindings
+- [ ] Add different benchmarks to compare Go with C and Lua
 - [ ] Investigate: concurrency: goroutines/scheduler support for single-threaded CPU
 - [ ] Implement conservative mark-and-sweep GC for Playdate's constraints
 - [ ] Create unit tests for `pdgoc` and API bindings
