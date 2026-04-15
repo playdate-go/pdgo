@@ -103,7 +103,7 @@ Result: `~/tinygo-playdate/build/tinygo` - a TinyGo compiler that accepts `-targ
 
 >[!NOTE]  
 > Playdate SDK >= 3.0.2 is required  
-> Golang >= 1.21 is requred
+> Go version must be ≥ 1.21 and ≤ the version used to build TinyGo. For example, if TinyGo was built with Go 1.25, you cannot use Go 1.26.
 
 Hi, my name is Roman Bielyi, and I'm developing this project in my spare time as a personal initiative.
 This project is an independent effort and is neither endorsed by nor affiliated with [Panic Inc](https://panic.com/).
