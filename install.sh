@@ -124,6 +124,9 @@ fi
 
 cd "$SOURCE_DIR/cmd/pdgoc"
 
+echo "  Downloading Go dependencies..."
+go mod tidy
+
 echo "  Building pdgoc..."
 echo "    Version: $VERSION"
 echo "    Commit:  $COMMIT"
