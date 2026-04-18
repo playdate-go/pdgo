@@ -96,49 +96,88 @@ echo -e "${GREEN}All dependencies OK${NC}"
 echo ""
 echo -e "${YELLOW}[2/4] Installing pdgoc...${NC}"
 
-# Create a temporary directory for building pdgoc
-BUILD_DIR=$(mktemp -d)
-trap "rm -rf $BUILD_DIR" EXIT
+# Detect if running from pdgo repo root
+if [ -d "cmd/pdgoc" ] && [ -f "go.mod" ]; then
+    echo "  Running from pdgo repository root - using local source"
 
-echo "  Downloading pdgo source..."
+    # Get version info from local git
+    VERSION=$(git describe --tags --always --dirty 2>/dev/null || echo "dev")
+    COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+    DATE=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
 
-# Try to get version info from GitHub API
-GITHUB_API="https://api.github.com/repos/playdate-go/pdgo"
-LATEST_TAG=$(curl -s "${GITHUB_API}/releases/latest" | grep '"tag_name"' | sed -E 's/.*"tag_name": ?"([^"]+)".*/\1/' 2>/dev/null || echo "")
-LATEST_COMMIT=$(curl -s "${GITHUB_API}/commits/main" | grep '"sha"' | head -1 | sed -E 's/.*"sha": ?"([^"]+)".*/\1/' 2>/dev/null | cut -c1-7 || echo "unknown")
+    echo "  Building pdgoc from local source..."
+    echo "    Version: $VERSION"
+    echo "    Commit:  $COMMIT"
+    echo "    Date:    $DATE"
 
-VERSION=${LATEST_TAG:-"latest"}
-COMMIT=${LATEST_COMMIT:-"unknown"}
-DATE=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
+    cd cmd/pdgoc
 
-# Download and extract source
-if [ -n "$LATEST_TAG" ]; then
-    echo "  Downloading release $LATEST_TAG..."
-    curl -sL "https://github.com/playdate-go/pdgo/archive/refs/tags/${LATEST_TAG}.tar.gz" | tar -xz -C "$BUILD_DIR"
-    SOURCE_DIR="$BUILD_DIR/pdgo-${LATEST_TAG#v}"
+    echo "  Downloading Go dependencies..."
+    go mod tidy
+
+    GOBIN="${GOBIN:-$(go env GOPATH)/bin}"
+    mkdir -p "$GOBIN"
+
+    # Build with ldflags to inject version information
+    go build -ldflags="-X 'main.Version=$VERSION' -X 'main.Commit=$COMMIT' -X 'main.Date=$DATE'" -o "$GOBIN/pdgoc" .
+
+    echo -e "  pdgoc installed at: ${GREEN}$GOBIN/pdgoc${NC}"
+
+    # Set flag for TinyGo patches to use local files
+    USE_LOCAL_PATCHES=true
+    LOCAL_REPO_ROOT=$(pwd)/../..
 else
-    echo "  Downloading latest source..."
-    curl -sL "https://github.com/playdate-go/pdgo/archive/refs/heads/main.tar.gz" | tar -xz -C "$BUILD_DIR"
-    SOURCE_DIR="$BUILD_DIR/pdgo-main"
+    # Running from curl - download from GitHub
+    echo "  Running from curl - downloading from GitHub"
+
+    # Create a temporary directory for building pdgoc
+    BUILD_DIR=$(mktemp -d)
+    trap "rm -rf $BUILD_DIR" EXIT
+
+    echo "  Downloading pdgo source..."
+
+    # Try to get version info from GitHub API
+    GITHUB_API="https://api.github.com/repos/playdate-go/pdgo"
+    LATEST_TAG=$(curl -s "${GITHUB_API}/releases/latest" | grep '"tag_name"' | sed -E 's/.*"tag_name": ?"([^"]+)".*/\1/' 2>/dev/null || echo "")
+    LATEST_COMMIT=$(curl -s "${GITHUB_API}/commits/main" | grep '"sha"' | head -1 | sed -E 's/.*"sha": ?"([^"]+)".*/\1/' 2>/dev/null | cut -c1-7 || echo "unknown")
+
+    VERSION=${LATEST_TAG:-"latest"}
+    COMMIT=${LATEST_COMMIT:-"unknown"}
+    DATE=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
+
+    # Download and extract source
+    if [ -n "$LATEST_TAG" ]; then
+        echo "  Downloading release $LATEST_TAG..."
+        curl -sL "https://github.com/playdate-go/pdgo/archive/refs/tags/${LATEST_TAG}.tar.gz" | tar -xz -C "$BUILD_DIR"
+        SOURCE_DIR="$BUILD_DIR/pdgo-${LATEST_TAG#v}"
+    else
+        echo "  Downloading latest source..."
+        curl -sL "https://github.com/playdate-go/pdgo/archive/refs/heads/main.tar.gz" | tar -xz -C "$BUILD_DIR"
+        SOURCE_DIR="$BUILD_DIR/pdgo-main"
+    fi
+
+    cd "$SOURCE_DIR/cmd/pdgoc"
+
+    echo "  Downloading Go dependencies..."
+    go mod tidy
+
+    echo "  Building pdgoc..."
+    echo "    Version: $VERSION"
+    echo "    Commit:  $COMMIT"
+    echo "    Date:    $DATE"
+
+    GOBIN="${GOBIN:-$(go env GOPATH)/bin}"
+    mkdir -p "$GOBIN"
+
+    # Build with ldflags to inject version information
+    go build -ldflags="-X 'main.Version=$VERSION' -X 'main.Commit=$COMMIT' -X 'main.Date=$DATE'" -o "$GOBIN/pdgoc" .
+
+    echo -e "  pdgoc installed at: ${GREEN}$GOBIN/pdgoc${NC}"
+
+    # Set flag for TinyGo patches to download from GitHub
+    USE_LOCAL_PATCHES=false
 fi
 
-cd "$SOURCE_DIR/cmd/pdgoc"
-
-echo "  Downloading Go dependencies..."
-go mod tidy
-
-echo "  Building pdgoc..."
-echo "    Version: $VERSION"
-echo "    Commit:  $COMMIT"
-echo "    Date:    $DATE"
-
-GOBIN="${GOBIN:-$(go env GOPATH)/bin}"
-mkdir -p "$GOBIN"
-
-# Build with ldflags to inject version information
-go build -ldflags="-X 'main.Version=$VERSION' -X 'main.Commit=$COMMIT' -X 'main.Date=$DATE'" -o "$GOBIN/pdgoc" .
-
-echo -e "  pdgoc installed at: ${GREEN}$GOBIN/pdgoc${NC}"
 
 # Check if GOBIN is in PATH
 if ! command -v pdgoc &>/dev/null; then
@@ -193,38 +232,91 @@ else
     # Add Playdate support files BEFORE building (required for gc.playdate)
     echo "  Adding Playdate support files..."
 
-    # Determine the branch/tag to use for downloading patches
-    PDGO_BRANCH=${PDGO_BRANCH:-"main"}
-    PATCHES_BASE_URL="https://raw.githubusercontent.com/playdate-go/pdgo/${PDGO_BRANCH}/cmd/pdgoc/tinygo-patches"
+    if [ "$USE_LOCAL_PATCHES" = true ]; then
+        # Use local patch files from the repository
+        echo "  Using local Playdate patches from repository..."
 
-    # Download patch files from GitHub
-    echo "  Downloading Playdate patches from GitHub..."
+        LOCAL_PATCHES_DIR="${LOCAL_REPO_ROOT}/cmd/pdgoc/tinygo-patches"
 
-    # playdate.json
-    curl -sL "${PATCHES_BASE_URL}/playdate.json" -o "$TINYGO_DIR/targets/playdate.json" || {
-        echo -e "${RED}Failed to download playdate.json${NC}"
-        exit 1
-    }
+        # playdate.json
+        cp "${LOCAL_PATCHES_DIR}/playdate.json" "$TINYGO_DIR/targets/playdate.json" || {
+            echo -e "${RED}Failed to copy playdate.json${NC}"
+            exit 1
+        }
 
-    # playdate.ld
-    curl -sL "${PATCHES_BASE_URL}/playdate.ld" -o "$TINYGO_DIR/targets/playdate.ld" || {
-        echo -e "${RED}Failed to download playdate.ld${NC}"
-        exit 1
-    }
+        # playdate.ld
+        cp "${LOCAL_PATCHES_DIR}/playdate.ld" "$TINYGO_DIR/targets/playdate.ld" || {
+            echo -e "${RED}Failed to copy playdate.ld${NC}"
+            exit 1
+        }
 
-    # runtime_playdate.go
-    curl -sL "${PATCHES_BASE_URL}/runtime_playdate.go" -o "$TINYGO_DIR/src/runtime/runtime_playdate.go" || {
-        echo -e "${RED}Failed to download runtime_playdate.go${NC}"
-        exit 1
-    }
+        # runtime_playdate.go
+        cp "${LOCAL_PATCHES_DIR}/runtime_playdate.go" "$TINYGO_DIR/src/runtime/runtime_playdate.go" || {
+            echo -e "${RED}Failed to copy runtime_playdate.go${NC}"
+            exit 1
+        }
 
-    # gc_playdate.go
-    curl -sL "${PATCHES_BASE_URL}/gc_playdate.go" -o "$TINYGO_DIR/src/runtime/gc_playdate.go" || {
-        echo -e "${RED}Failed to download gc_playdate.go${NC}"
-        exit 1
-    }
+        # gc_playdate.go
+        cp "${LOCAL_PATCHES_DIR}/gc_playdate.go" "$TINYGO_DIR/src/runtime/gc_playdate.go" || {
+            echo -e "${RED}Failed to copy gc_playdate.go${NC}"
+            exit 1
+        }
 
-    echo -e "  ${GREEN}Playdate patches applied successfully${NC}"
+        # gc_stack_playdate.go
+        cp "${LOCAL_PATCHES_DIR}/gc_stack_playdate.go" "$TINYGO_DIR/src/runtime/gc_stack_playdate.go" 2>/dev/null || {
+            echo -e "${YELLOW}Warning: gc_stack_playdate.go not found, skipping${NC}"
+        }
+
+        # gc_stack_playdate_arm.S
+        cp "${LOCAL_PATCHES_DIR}/gc_stack_playdate_arm.S" "$TINYGO_DIR/src/runtime/gc_stack_playdate_arm.S" 2>/dev/null || {
+            echo -e "${YELLOW}Warning: gc_stack_playdate_arm.S not found, skipping${NC}"
+        }
+
+        echo -e "  ${GREEN}Playdate patches applied from local files${NC}"
+    else
+        # Download patch files from GitHub
+        echo "  Downloading Playdate patches from GitHub..."
+
+        # Determine the branch/tag to use for downloading patches
+        PDGO_BRANCH=${PDGO_BRANCH:-"main"}
+        PATCHES_BASE_URL="https://raw.githubusercontent.com/playdate-go/pdgo/${PDGO_BRANCH}/cmd/pdgoc/tinygo-patches"
+
+        # playdate.json
+        curl -sL "${PATCHES_BASE_URL}/playdate.json" -o "$TINYGO_DIR/targets/playdate.json" || {
+            echo -e "${RED}Failed to download playdate.json${NC}"
+            exit 1
+        }
+
+        # playdate.ld
+        curl -sL "${PATCHES_BASE_URL}/playdate.ld" -o "$TINYGO_DIR/targets/playdate.ld" || {
+            echo -e "${RED}Failed to download playdate.ld${NC}"
+            exit 1
+        }
+
+        # runtime_playdate.go
+        curl -sL "${PATCHES_BASE_URL}/runtime_playdate.go" -o "$TINYGO_DIR/src/runtime/runtime_playdate.go" || {
+            echo -e "${RED}Failed to download runtime_playdate.go${NC}"
+            exit 1
+        }
+
+        # gc_playdate.go
+        curl -sL "${PATCHES_BASE_URL}/gc_playdate.go" -o "$TINYGO_DIR/src/runtime/gc_playdate.go" || {
+            echo -e "${RED}Failed to download gc_playdate.go${NC}"
+            exit 1
+        }
+
+        # gc_stack_playdate.go
+        curl -sL "${PATCHES_BASE_URL}/gc_stack_playdate.go" -o "$TINYGO_DIR/src/runtime/gc_stack_playdate.go" 2>/dev/null || {
+            echo -e "${YELLOW}Warning: gc_stack_playdate.go not found on remote, skipping${NC}"
+        }
+
+        # gc_stack_playdate_arm.S
+        curl -sL "${PATCHES_BASE_URL}/gc_stack_playdate_arm.S" -o "$TINYGO_DIR/src/runtime/gc_stack_playdate_arm.S" 2>/dev/null || {
+            echo -e "${YELLOW}Warning: gc_stack_playdate_arm.S not found on remote, skipping${NC}"
+        }
+
+        echo -e "  ${GREEN}Playdate patches applied successfully${NC}"
+    fi
 
     # Check for system LLVM (Linux only)
     USE_SYSTEM_LLVM=false
