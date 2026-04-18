@@ -232,45 +232,49 @@ else
     # Add Playdate support files BEFORE building (required for gc.playdate)
     echo "  Adding Playdate support files..."
 
+    # Define patch files by destination directory
+    # Format: "source_file:destination_file:required"
+    PATCHES_TARGETS=(
+        "playdate.json:targets/playdate.json:required"
+        "playdate.ld:targets/playdate.ld:required"
+    )
+
+    PATCHES_RUNTIME=(
+        "runtime_playdate.go:src/runtime/runtime_playdate.go:required"
+        "gc_playdate.go:src/runtime/gc_playdate.go:required"
+        "gc_stack_playdate.go:src/runtime/gc_stack_playdate.go:optional"
+        "gc_stack_playdate_arm.S:src/runtime/gc_stack_playdate_arm.S:optional"
+    )
+
     if [ "$USE_LOCAL_PATCHES" = true ]; then
         # Use local patch files from the repository
         echo "  Using local Playdate patches from repository..."
 
         LOCAL_PATCHES_DIR="${LOCAL_REPO_ROOT}/cmd/pdgoc/tinygo-patches"
 
-        # playdate.json
-        cp "${LOCAL_PATCHES_DIR}/playdate.json" "$TINYGO_DIR/targets/playdate.json" || {
-            echo -e "${RED}Failed to copy playdate.json${NC}"
-            exit 1
-        }
+        # Copy target files
+        for patch in "${PATCHES_TARGETS[@]}"; do
+            IFS=':' read -r src dst req <<< "$patch"
+            if ! cp "${LOCAL_PATCHES_DIR}/${src}" "$TINYGO_DIR/${dst}"; then
+                echo -e "${RED}Failed to copy ${src}${NC}"
+                exit 1
+            fi
+        done
 
-        # playdate.ld
-        cp "${LOCAL_PATCHES_DIR}/playdate.ld" "$TINYGO_DIR/targets/playdate.ld" || {
-            echo -e "${RED}Failed to copy playdate.ld${NC}"
-            exit 1
-        }
-
-        # runtime_playdate.go
-        cp "${LOCAL_PATCHES_DIR}/runtime_playdate.go" "$TINYGO_DIR/src/runtime/runtime_playdate.go" || {
-            echo -e "${RED}Failed to copy runtime_playdate.go${NC}"
-            exit 1
-        }
-
-        # gc_playdate.go
-        cp "${LOCAL_PATCHES_DIR}/gc_playdate.go" "$TINYGO_DIR/src/runtime/gc_playdate.go" || {
-            echo -e "${RED}Failed to copy gc_playdate.go${NC}"
-            exit 1
-        }
-
-        # gc_stack_playdate.go
-        cp "${LOCAL_PATCHES_DIR}/gc_stack_playdate.go" "$TINYGO_DIR/src/runtime/gc_stack_playdate.go" 2>/dev/null || {
-            echo -e "${YELLOW}Warning: gc_stack_playdate.go not found, skipping${NC}"
-        }
-
-        # gc_stack_playdate_arm.S
-        cp "${LOCAL_PATCHES_DIR}/gc_stack_playdate_arm.S" "$TINYGO_DIR/src/runtime/gc_stack_playdate_arm.S" 2>/dev/null || {
-            echo -e "${YELLOW}Warning: gc_stack_playdate_arm.S not found, skipping${NC}"
-        }
+        # Copy runtime files
+        for patch in "${PATCHES_RUNTIME[@]}"; do
+            IFS=':' read -r src dst req <<< "$patch"
+            if [ "$req" = "required" ]; then
+                if ! cp "${LOCAL_PATCHES_DIR}/${src}" "$TINYGO_DIR/${dst}"; then
+                    echo -e "${RED}Failed to copy ${src}${NC}"
+                    exit 1
+                fi
+            else
+                cp "${LOCAL_PATCHES_DIR}/${src}" "$TINYGO_DIR/${dst}" 2>/dev/null || {
+                    echo -e "${YELLOW}Warning: ${src} not found, skipping${NC}"
+                }
+            fi
+        done
 
         echo -e "  ${GREEN}Playdate patches applied from local files${NC}"
     else
@@ -281,39 +285,29 @@ else
         PDGO_BRANCH=${PDGO_BRANCH:-"main"}
         PATCHES_BASE_URL="https://raw.githubusercontent.com/playdate-go/pdgo/${PDGO_BRANCH}/cmd/pdgoc/tinygo-patches"
 
-        # playdate.json
-        curl -sL "${PATCHES_BASE_URL}/playdate.json" -o "$TINYGO_DIR/targets/playdate.json" || {
-            echo -e "${RED}Failed to download playdate.json${NC}"
-            exit 1
-        }
+        # Download target files
+        for patch in "${PATCHES_TARGETS[@]}"; do
+            IFS=':' read -r src dst req <<< "$patch"
+            if ! curl -sL "${PATCHES_BASE_URL}/${src}" -o "$TINYGO_DIR/${dst}"; then
+                echo -e "${RED}Failed to download ${src}${NC}"
+                exit 1
+            fi
+        done
 
-        # playdate.ld
-        curl -sL "${PATCHES_BASE_URL}/playdate.ld" -o "$TINYGO_DIR/targets/playdate.ld" || {
-            echo -e "${RED}Failed to download playdate.ld${NC}"
-            exit 1
-        }
-
-        # runtime_playdate.go
-        curl -sL "${PATCHES_BASE_URL}/runtime_playdate.go" -o "$TINYGO_DIR/src/runtime/runtime_playdate.go" || {
-            echo -e "${RED}Failed to download runtime_playdate.go${NC}"
-            exit 1
-        }
-
-        # gc_playdate.go
-        curl -sL "${PATCHES_BASE_URL}/gc_playdate.go" -o "$TINYGO_DIR/src/runtime/gc_playdate.go" || {
-            echo -e "${RED}Failed to download gc_playdate.go${NC}"
-            exit 1
-        }
-
-        # gc_stack_playdate.go
-        curl -sL "${PATCHES_BASE_URL}/gc_stack_playdate.go" -o "$TINYGO_DIR/src/runtime/gc_stack_playdate.go" 2>/dev/null || {
-            echo -e "${YELLOW}Warning: gc_stack_playdate.go not found on remote, skipping${NC}"
-        }
-
-        # gc_stack_playdate_arm.S
-        curl -sL "${PATCHES_BASE_URL}/gc_stack_playdate_arm.S" -o "$TINYGO_DIR/src/runtime/gc_stack_playdate_arm.S" 2>/dev/null || {
-            echo -e "${YELLOW}Warning: gc_stack_playdate_arm.S not found on remote, skipping${NC}"
-        }
+        # Download runtime files
+        for patch in "${PATCHES_RUNTIME[@]}"; do
+            IFS=':' read -r src dst req <<< "$patch"
+            if [ "$req" = "required" ]; then
+                if ! curl -sL "${PATCHES_BASE_URL}/${src}" -o "$TINYGO_DIR/${dst}"; then
+                    echo -e "${RED}Failed to download ${src}${NC}"
+                    exit 1
+                fi
+            else
+                curl -sL "${PATCHES_BASE_URL}/${src}" -o "$TINYGO_DIR/${dst}" 2>/dev/null || {
+                    echo -e "${YELLOW}Warning: ${src} not found on remote, skipping${NC}"
+                }
+            fi
+        done
 
         echo -e "  ${GREEN}Playdate patches applied successfully${NC}"
     fi
