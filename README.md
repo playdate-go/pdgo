@@ -29,16 +29,9 @@ This installs **everything** you need:
 - Custom `TinyGo` with Playdate support (for device builds)
 - Configures your PATH automatically
 
-### Build Times
-
-| Platform | With System LLVM | Without (build from source) |
-|----------|------------------|----------------------------|
-| **Linux** | ~1 minute | ~25-30 minutes |
-| **macOS** | N/A (must build) | ~25-30 minutes |
 
 > [!IMPORTANT]
-> **macOS users**: Homebrew LLVM does not include static LLD libraries required to build TinyGo.
-> The install script will automatically compile LLVM from source (~25-30 minutes, only needed once).
+> The install script will automatically compile LLVM from source (in example ~9 minutes on Apple Silicon M5 Pro (15 CPU) and ~25-30 minutes on Apple Sillicon M1 (8-CPU), only needed once).
 
 ### Pre-install LLVM (Linux only - speeds up build)
 
@@ -74,6 +67,22 @@ SKIP_TINYGO=1 curl -fsSL https://raw.githubusercontent.com/playdate-go/pdgo/main
 # Custom parallel jobs
 JOBS=8 curl -fsSL https://raw.githubusercontent.com/playdate-go/pdgo/main/install.sh | bash
 ```
+
+### Installation Modes
+
+The install script automatically detects how it's being run and adjusts accordingly:
+
+| Mode | How to Run | pdgoc Source | Playdate Patches | Use Case |
+|------|-----------|--------------|------------------|----------|
+| **Local** | `./install.sh` from repo root | Local `cmd/pdgoc/` | Local `cmd/pdgoc/tinygo-patches/` | Development & testing |
+| **Remote** | `curl ... | bash` | GitHub tarball | GitHub raw URLs | Production installation |
+
+**Local Mode Benefits:**
+- Build from local source - test your changes before committing
+- Use local patch files - faster, no network needed
+- Get accurate version info from local git
+
+The installer automatically detects which mode to use by checking for `cmd/pdgoc/` directory and `go.mod` file in the current directory.
 
 ### What the installer does
 
