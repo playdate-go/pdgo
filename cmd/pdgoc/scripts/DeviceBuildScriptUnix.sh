@@ -1,13 +1,12 @@
-package proc
-
-// rawBuildScript is the embedded build script for Playdate device builds.
-// It expects the following environment variables:
-//   - GAME_NAME: Project name
-//   - GAME_DIR: Project root directory
-//   - GO_SRC_DIR: Directory containing Go source files (go.mod)
-//   - BUILD_DIR: Directory for build artifacts
-const rawBuildScript = `#!/bin/bash
+#!/bin/bash
 set -e
+
+# rawBuildScript is the embedded build script for Playdate device builds.
+# It expects the following environment variables:
+#   - GAME_NAME: Project name
+#   - GAME_DIR: Project root directory
+#   - GO_SRC_DIR: Directory containing Go source files (go.mod)
+#   - BUILD_DIR: Directory for build artifacts
 
 # TinyGo with Playdate support
 TINYGO="${TINYGO_PLAYDATE:-$HOME/tinygo-playdate/build/tinygo}"
@@ -132,4 +131,3 @@ rm -f "$GO_SRC_DIR/pdex.elf"
 
 echo ""
 echo "=== Build complete: $GAME_DIR/${GAME_NAME}.pdx ==="
-`

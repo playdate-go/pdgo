@@ -7,6 +7,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/playdate-go/pdgo/cmd/pdgoc/utils"
 )
 
 func (p *Processor) processDevice() error {
@@ -90,7 +92,7 @@ func (p *Processor) runBuildScript() error {
 	log.Printf("successfully ran 'go mod tidy'")
 
 	// Create temporary build script
-	buildScriptFile, err := os.CreateTemp("", "device-build-*.sh")
+	buildScriptFile, err := os.CreateTemp("", utils.GetBuildScriptFilename())
 	if err != nil {
 		return fmt.Errorf("failed to create temp build script file: %s", err)
 	}
@@ -100,7 +102,7 @@ func (p *Processor) runBuildScript() error {
 		}
 	}()
 
-	if _, err = buildScriptFile.WriteString(rawBuildScript); err != nil {
+	if _, err = buildScriptFile.WriteString(string(utils.GetBuildScript())); err != nil {
 		return fmt.Errorf("failed to write temp file '%s': %s", buildScriptFile.Name(), err)
 	}
 	if err = buildScriptFile.Close(); err != nil {
@@ -112,13 +114,20 @@ func (p *Processor) runBuildScript() error {
 	}
 
 	// Run the build script
-	cmd := exec.Command("bash", buildScriptFile.Name())
+	sdkPath, err := utils.GetPlaydateSDKPath()
+	if err != nil {
+		return fmt.Errorf("failed to retrieve PlayDate SDK path before build: %w", err)
+	}
+	cmd := exec.Command(utils.GetShellExecutableName(), buildScriptFile.Name())
 	cmd.Dir = goSrcDir
 	cmd.Env = append(os.Environ(),
 		"GAME_NAME="+p.cfg.Meta.Name,
 		"GAME_DIR="+gameDir,
 		"GO_SRC_DIR="+goSrcDir,
 		"BUILD_DIR="+buildDir,
+		"TINYGO_PLAYDATE="+utils.GetTinyGoPath(),
+		"TINYGO_PLAYDATE_DIR="+utils.GetTinyGoDir(),
+		"PLAYDATE_SDK_PATH="+sdkPath,
 	)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr

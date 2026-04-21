@@ -24,14 +24,13 @@ func GetSimulatorPath() (string, error) {
 	return path.Join(sdkPath, "bin/Playdate Simulator.app/Contents/MacOS/Playdate Simulator"), nil
 }
 
-func GetExecutable(path string) string {
-	return path
-}
-
 func GetLibrary(path string) string {
 	return fmt.Sprintf("%s.dylib", path)
 }
 
-func GetLs(path string) (string, []string) {
-	return "ls", []string{path}
+func PlaydatePortPatterns() []string {
+	return []string{
+		"/dev/cu.usbmodemPD*",
+		"/dev/cu.usbmodem*",
+	}
 }

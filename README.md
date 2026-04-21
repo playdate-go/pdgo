@@ -20,6 +20,8 @@
 
 ## Quick Install
 
+### For MacOS and Linux
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/playdate-go/pdgo/main/install.sh | bash
 ```
@@ -28,6 +30,18 @@ This installs **everything** you need:
 - `pdgoc` - the build tool
 - Custom `TinyGo` with Playdate support (for device builds)
 - Configures your PATH automatically
+
+### For Windows
+
+Open a Powershell terminal and run:
+```powershell
+iwr -useb https://raw.githubusercontent.com/playdate-go/pdgo/main/install.ps1 | iex
+```
+Log out and login back to ensure paths are properly updated.
+
+The installer uses [Scoop](https://scoop.sh) to manage dependencies, and will install it automatically if not present.
+
+If you have issues with the installer, create an issue [here](https://github.com/playdate-go/pdgo/issues).
 
 ### Build Times
 
