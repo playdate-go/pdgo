@@ -242,8 +242,6 @@ else
     PATCHES_RUNTIME=(
         "runtime_playdate.go:src/runtime/runtime_playdate.go"
         "gc_playdate.go:src/runtime/gc_playdate.go"
-        "gc_stack_playdate.go:src/runtime/gc_stack_playdate.go"
-        "gc_stack_playdate_arm.S:src/runtime/gc_stack_playdate_arm.S"
     )
 
     if [ "$USE_LOCAL_PATCHES" = true ]; then
