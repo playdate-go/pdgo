@@ -510,6 +510,51 @@ The simulator build uses the same `pd_cgo.c` from the pdgo module as the device 
 | `pdxinfo`                | `Source/` | Game metadata                 | Deleted after build |
 
 
+## Known Issues: TinyGo fmt Package on Device
+
+Two confirmed crash-causing patterns in TinyGo's `fmt` package when targeting ARM Thumb (Playdate device). Both work fine in the Simulator (standard Go) but crash immediately on device.
+
+### Bug 1: `fmt.Sprintf("%v", slice)` — reflection on slices
+
+```go
+// CRASHES on device:
+fmt.Sprintf("%v", []int{1, 2, 3})
+
+// FIX — manual string building:
+func joinInts(s []int) string {
+    r := "["
+    for i, v := range s {
+        if i > 0 { r += "," }
+        r += fmt.Sprint(v)
+    }
+    return r + "]"
+}
+```
+
+The `%v` format verb uses reflection to iterate slice elements, which is broken in TinyGo on ARM.
+
+### Bug 2: `fmt.Sprint(customStringerType)` — fmt.Stringer interface assertion
+
+```go
+// CRASHES on device:
+type myString string
+func (m myString) String() string { return string(m) }
+fmt.Sprint(myString("test"))
+
+// FIX — call String() directly:
+string(myString("test"))
+// or
+myString("test").String()
+```
+
+TinyGo's `fmt` package internally checks if a value implements `fmt.Stringer`. This interface assertion is broken on ARM Thumb.
+
+### General Rule
+
+On TinyGo ARM/Playdate: only use `fmt.Sprintf`/`fmt.Sprint` with **basic concrete types** (`int`, `string`, `bool`, `float64` with basic format verbs like `%d`, `%s`, `%t`, `%.1f`). Never pass slices, maps, or custom types implementing interfaces to any `fmt` function.
+
+---
+
 ## API Bindings
 The latest full documentation for API bindings is hosted here:
 https://pkg.go.dev/github.com/playdate-go/pdgo#section-documentation
