@@ -9,6 +9,7 @@
 - [Internals](#internals)
 - [Why Not Go But TinyGo](#why-not-go-but-tinygo)
 - [Flow](#flow)
+- [Known Issues](#known-issues)
 - [API Bindings](#api-bindings)
 - [Examples](#examples)
 - [Roadmap](#roadmap)
@@ -510,7 +511,7 @@ The simulator build uses the same `pd_cgo.c` from the pdgo module as the device 
 | `pdxinfo`                | `Source/` | Game metadata                 | Deleted after build |
 
 
-## Known Issues: TinyGo fmt Package on Device
+## Known Issues: 
 
 Two confirmed crash-causing patterns in TinyGo's `fmt` package when targeting ARM Thumb (Playdate device). Both work fine in the Simulator (standard Go) but crash immediately on device.
 
