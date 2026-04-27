@@ -12,6 +12,7 @@
 - [Known Issues](#known-issues)
 - [API Bindings](#api-bindings)
 - [Examples](#examples)
+- [A Tour Of Go](#a-tour-of-go)
 - [Roadmap](#roadmap)
 - [Contribution](#contribution)
 - [Community](#community)
@@ -600,6 +601,35 @@ Each example includes a `build.sh` script that runs `pdgoc` with all necessary f
 **Hello World** -- [game_examples/hello_world](game_examples/hello_world)
 
 
+## A Tour Of Go
+
+The official Go language tutorial — [A Tour of Go](https://go.dev/tour/) — has been adapted to run on Playdate with PdGo, out of the box, on both the Simulator and the device.
+
+If you are coming from C or Lua gamedev and want to learn Go, this is the fastest way to try every language feature hands-on: packages, functions, control flow, pointers, structs, arrays, slices, maps, closures, methods, interfaces, type assertions, generics, errors, and io.Reader — all running directly on Playdate hardware.
+
+All examples are located in the `tour_of_go/` directory. Each example is a self-contained PdGo project with its own `build.sh`.
+
+**Build all examples at once:**
+```bash
+cd tour_of_go
+chmod +x build_all.sh
+chmod +x */build.sh
+./build_all.sh
+```
+
+**Build a single example:**
+```bash
+cd tour_of_go/17_for
+chmod +x build.sh
+./build.sh
+```
+
+The examples cover Go fundamentals (01-26), pointers and structs (27-32), slices (33-41), maps (44-47), functions and closures (48-49), methods (50-57), interfaces (58-62), type assertions and switches (64-65), Stringer (66), errors (67), io.Reader (68), and generics (`generics_type_parameters`, `generics_generic_types`, `generics_all`).
+
+All examples are device-tested and avoid [known TinyGo ARM fmt issues](#known-issues-).
+
+---
+
 ## Roadmap
 
 - [ ] Add more own complex code examples to cover and test all API subsystems
@@ -634,7 +664,7 @@ Each example includes a `build.sh` script that runs `pdgoc` with all necessary f
 - [ ] Make sure Lua interoperability works
 - [ ] Make sure C interoperability works
 - [X] Write documentation for API bindings
-- [ ] Add Go-Tour like code examples to demostrate language's syntax and semantic to newcomers  
+- [x] Add Go-Tour like code examples to demostrate language's syntax and semantic to newcomers  
 - [ ] Add different benchmarks to compare Go with C and Lua
 - [ ] Investigate: concurrency: goroutines/scheduler support for single-threaded CPU
 - [ ] Implement conservative mark-and-sweep GC for Playdate's constraints
