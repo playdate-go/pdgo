@@ -46,51 +46,20 @@ arm-none-eabi-gcc $MCFLAGS $CPFLAGS -O2 -DTARGET_PLAYDATE=1 -DTARGET_EXTENSION=1
 # Create static library from pd_runtime.o
 arm-none-eabi-ar rcs "$BUILD_DIR/libpd.a" "$BUILD_DIR/pd_runtime.o"
 
-# Step 2: Create linker script and TinyGo target
+# Step 2: Configure TinyGo target using installed patches as base
 echo "Step 2: Configuring build..."
-cat > "$BUILD_DIR/playdate.ld" << 'LDSCRIPT'
-ENTRY(eventHandlerShim)
 
-SECTIONS
-{
-    .text : ALIGN(4) {
-        KEEP(*(.text.eventHandlerShim))
-        KEEP(*(.text.eventHandler))
-        KEEP(*(.text.updateCallback))
-        KEEP(*(.text.runtime_init))
-        *(.text) *(.text.*) *(.rodata) *(.rodata.*)
-        KEEP(*(.init)) KEEP(*(.fini))
-        . = ALIGN(4);
-    }
-    .data : ALIGN(4) {
-        __data_start__ = .; *(.data) *(.data.*) . = ALIGN(4); __data_end__ = .;
-    }
-    .bss (NOLOAD) : ALIGN(4) {
-        __bss_start__ = .; _sbss = .; *(.bss) *(.bss.*) *(COMMON) . = ALIGN(4); __bss_end__ = .; _ebss = .;
-    }
-    /DISCARD/ : { *(.ARM.exidx*) *(.ARM.extab*) }
-    _sidata = LOADADDR(.data);
-    _sdata = __data_start__; _edata = __data_end__;
-    _globals_start = __data_start__; _globals_end = __bss_end__;
-    _stack_top = __bss_end__;
-}
-LDSCRIPT
+# Copy linker script from TinyGo installation (installed by install.sh from tinygo-patches/)
+[ -f "$TINYGO_DIR/targets/playdate.ld" ] || { echo "Error: playdate.ld not found in $TINYGO_DIR/targets/ — run install.sh first"; exit 1; }
+cp "$TINYGO_DIR/targets/playdate.ld" "$BUILD_DIR/playdate.ld"
 
-mkdir -p "$TINYGO_DIR/targets"
+# Extend the installed playdate.json with build-specific linkerscript and ldflags
+[ -f "$TINYGO_DIR/targets/playdate.json" ] || { echo "Error: playdate.json not found in $TINYGO_DIR/targets/ — run install.sh first"; exit 1; }
+BASE_JSON=$(cat "$TINYGO_DIR/targets/playdate.json")
+BASE_JSON="${BASE_JSON%?}"  # strip trailing }
 cat > "$TINYGO_DIR/targets/playdate.json" << EOF
-{
-    "inherits": ["cortex-m"],
-    "llvm-target": "thumbv7em-unknown-unknown-eabihf",
-    "cpu": "cortex-m7",
-    "features": "+armv7e-m,+dsp,+hwdiv,+thumb-mode,+fp-armv8d16sp,+vfp4d16sp",
-    "build-tags": ["playdate", "tinygo", "gc.playdate"],
-    "gc": "playdate",
-    "scheduler": "none",
-    "serial": "none",
-    "automatic-stack-size": false,
-    "default-stack-size": 131072,
+${BASE_JSON},
     "linkerscript": "$BUILD_DIR/playdate.ld",
-    "cflags": ["-DTARGET_PLAYDATE=1", "-mfloat-abi=hard", "-mfpu=fpv5-sp-d16"],
     "ldflags": ["-L$BUILD_DIR", "-lpd"]
 }
 EOF

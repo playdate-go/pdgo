@@ -1,5 +1,5 @@
 
-<img src="assets/gopher-on-playdate.jpg" alt="Gopher on Playdate" width="300"  >
+<img src="assets/pdgo-logo.png" alt="Logo" width="270"  >
 
 ## Menu
 
@@ -9,8 +9,10 @@
 - [Internals](#internals)
 - [Why Not Go But TinyGo](#why-not-go-but-tinygo)
 - [Flow](#flow)
+- [Known Issues](#known-issues)
 - [API Bindings](#api-bindings)
 - [Examples](#examples)
+- [A Tour Of Go](#a-tour-of-go)
 - [Roadmap](#roadmap)
 - [Contribution](#contribution)
 - [Community](#community)
@@ -31,6 +33,9 @@ This installs **everything** you need:
 - Custom `TinyGo` with Playdate support (for device builds)
 - Configures your PATH automatically
 
+> [!IMPORTANT]
+> The install script will automatically compile LLVM from source (in example ~9 minutes on Apple Silicon M5 Pro (15 CPU) and ~25-30 minutes on Apple Sillicon M1 (8-CPU), only needed once).
+
 ### For Windows
 
 Open a Powershell terminal and run:
@@ -42,17 +47,6 @@ Log out and login back to ensure paths are properly updated.
 The installer uses [Scoop](https://scoop.sh) to manage dependencies, and will install it automatically if not present.
 
 If you have issues with the installer, create an issue [here](https://github.com/playdate-go/pdgo/issues).
-
-### Build Times
-
-| Platform | With System LLVM | Without (build from source) |
-|----------|------------------|----------------------------|
-| **Linux** | ~1 minute | ~25-30 minutes |
-| **macOS** | N/A (must build) | ~25-30 minutes |
-
-> [!IMPORTANT]
-> **macOS users**: Homebrew LLVM does not include static LLD libraries required to build TinyGo.
-> The install script will automatically compile LLVM from source (~25-30 minutes, only needed once).
 
 ### Pre-install LLVM (Linux only - speeds up build)
 
@@ -89,6 +83,22 @@ SKIP_TINYGO=1 curl -fsSL https://raw.githubusercontent.com/playdate-go/pdgo/main
 JOBS=8 curl -fsSL https://raw.githubusercontent.com/playdate-go/pdgo/main/install.sh | bash
 ```
 
+### Installation Modes
+
+The install script automatically detects how it's being run and adjusts accordingly:
+
+| Mode | How to Run | pdgoc Source | Playdate Patches | Use Case |
+|------|-----------|--------------|------------------|----------|
+| **Local** | `./install.sh` from repo root | Local `cmd/pdgoc/` | Local `cmd/pdgoc/tinygo-patches/` | Development & testing |
+| **Remote** | `curl ... | bash` | GitHub tarball | GitHub raw URLs | Production installation |
+
+**Local Mode Benefits:**
+- Build from local source - test your changes before committing
+- Use local patch files - faster, no network needed
+- Get accurate version info from local git
+
+The installer automatically detects which mode to use by checking for `cmd/pdgoc/` directory and `go.mod` file in the current directory.
+
 ### What the installer does
 
 1. **Installs pdgoc** - `go install github.com/playdate-go/pdgo/cmd/pdgoc@latest`
@@ -98,7 +108,7 @@ JOBS=8 curl -fsSL https://raw.githubusercontent.com/playdate-go/pdgo/main/instal
    - `playdate.json` - target config (Cortex-M7, custom GC, no scheduler)
    - `playdate.ld` - linker script (memory layout, entry point)
    - `runtime_playdate.go` - platform runtime (time, console output via SDK)
-   - `gc_playdate.go` - custom GC that delegates to Playdate SDK's realloc
+   - `gc_playdate.go` - leaking GC type (heap allocations never reclaimed unless manually freed)
 5. **Builds TinyGo** - compiles with Playdate support
 6. **Configures PATH** - adds `pdgoc` and `tinygo` to your shell
 
@@ -117,7 +127,7 @@ Result: `~/tinygo-playdate/build/tinygo` - a TinyGo compiler that accepts `-targ
 
 >[!NOTE]  
 > Playdate SDK >= 3.0.2 is required  
-> Golang >= 1.21 is requred
+> Go version must be ≥ 1.21 and ≤ the version used to build TinyGo. For example, if TinyGo was built with Go 1.25, you cannot use Go 1.26.
 
 Hi, my name is Roman Bielyi, and I'm developing this project in my spare time as a personal initiative.
 This project is an independent effort and is neither endorsed by nor affiliated with [Panic Inc](https://panic.com/).
@@ -232,8 +242,16 @@ func main() {}
 For Playdate hardware `pdgoc` uses a custom [TinyGo](https://tinygo.org/) build with full Playdate hardware support instead of standard Go build tools.
 
 **Custom GC**:  
-Custom TinyGo build for Playdate achieves minimal binary sizes through custom Playdate GC:
-Instead of including traditional garbage collection logic (mark, sweep, write barriers), we delegate all allocations to the Playdate SDK's `realloc` function. This results in minimal GC wrapper code in the final binary. The Playdate OS already provides a robust allocator optimized for the hardware, and we simply use it!
+Custom TinyGo build for Playdate currently uses "leaking" GC type–heap allocations from both Go and the Playdate C API are never reclaimed unless you free them manually.
+
+This isn't the goal. We're building a conservative mark-and-sweep GC designed for Playdate's constraints:
+- Tracks Go-level objects conservatively, integrated with the SDK allocator.
+- Uses a finalizers pattern to automatically free C-level API objects (bitmaps, sprites, sounds) when they become unreachable – managing both heaps in one system.
+- Lightweight stop-the-world pauses, lighter than Go's stock tri-color GC, tuned for a constrained system.
+
+The priority is making it work reliably. Concrete specifications will follow. Once stable, the headache shifts from manual frees to what every Go developer already handles on constrained systems: keeping heap churn low. A much better problem to have.
+
+Follow this link to the progress:
 
 <details>
 <summary>click to see: gc_playdate.go</summary>
@@ -256,7 +274,7 @@ func alloc(size uintptr, layout unsafe.Pointer) unsafe.Pointer {
 }
 
 func GC() {
-    // No-op - Playdate SDK manages memory
+    // No-op - leaking GC, manual free required
 }
 
 func SetFinalizer(obj interface{}, finalizer interface{}) {
@@ -418,7 +436,7 @@ Go Source -> TinyGo Frontend -> LLVM IR -> LLVM Backend -> ARM Thumb-2 ELF
 ```
 
 Summary: Standard Go is designed for desktop/server environments, full operating systems, abundant memory (GB).
-Playdate requires: bare-metal ARM Cortex-M7, no operating system, tiny runtime, SDK-managed memory.
+Playdate requires: bare-metal ARM Cortex-M7, no operating system, tiny runtime, and manual memory management (conservative mark-and-sweep GC planned).
 
 TinyGo bridges this gap by reimplementing Go compilation targeting embedded systems with LLVM backend. Our custom TinyGo build supports CGO on bare-metal Playdate hardware through a unified C wrapper layer (`pd_cgo.c`).
 
@@ -507,6 +525,51 @@ The simulator build uses the same `pd_cgo.c` from the pdgo module as the device 
 | `pdxinfo`                | `Source/` | Game metadata                 | Deleted after build |
 
 
+## Known Issues: 
+
+Two confirmed crash-causing patterns in TinyGo's `fmt` package when targeting ARM Thumb (Playdate device). Both work fine in the Simulator (standard Go) but crash immediately on device.
+
+### Bug 1: `fmt.Sprintf("%v", slice)` — reflection on slices
+
+```go
+// CRASHES on device:
+fmt.Sprintf("%v", []int{1, 2, 3})
+
+// FIX — manual string building:
+func joinInts(s []int) string {
+    r := "["
+    for i, v := range s {
+        if i > 0 { r += "," }
+        r += fmt.Sprint(v)
+    }
+    return r + "]"
+}
+```
+
+The `%v` format verb uses reflection to iterate slice elements, which is broken in TinyGo on ARM.
+
+### Bug 2: `fmt.Sprint(customStringerType)` — fmt.Stringer interface assertion
+
+```go
+// CRASHES on device:
+type myString string
+func (m myString) String() string { return string(m) }
+fmt.Sprint(myString("test"))
+
+// FIX — call String() directly:
+string(myString("test"))
+// or
+myString("test").String()
+```
+
+TinyGo's `fmt` package internally checks if a value implements `fmt.Stringer`. This interface assertion is broken on ARM Thumb.
+
+### General Rule
+
+On TinyGo ARM/Playdate: only use `fmt.Sprintf`/`fmt.Sprint` with **basic concrete types** (`int`, `string`, `bool`, `float64` with basic format verbs like `%d`, `%s`, `%t`, `%.1f`). Never pass slices, maps, or custom types implementing interfaces to any `fmt` function.
+
+---
+
 ## API Bindings
 The latest full documentation for API bindings is hosted here:
 https://pkg.go.dev/github.com/playdate-go/pdgo#section-documentation
@@ -519,37 +582,66 @@ https://pkg.go.dev/github.com/playdate-go/pdgo#section-documentation
 To build all examples please do this:
 ```bash
 # in project repo root
-chmod +x examples/build_all.sh 
-chmod +x examples/*/build.sh
-./examples/build_all.sh
+chmod +x game_examples/build_all.sh 
+chmod +x game_examples/*/build.sh
+./game_examples/build_all.sh
 ```
 
 Each example includes a `build.sh` script that runs `pdgoc` with all necessary flags.
 
-**Particles** -- [examples/particles](examples/particles)
+**Particles** -- [game_examples/particles](game_examples/particles)
 
-**Exposure** -- [examples/exposure](examples/exposure)
+**Exposure** -- [game_examples/exposure](game_examples/exposure)
 
-**Sprite Collisions** -- [examples/sprite_collisions](examples/sprite_collisions)
+**Sprite Collisions** -- [game_examples/sprite_collisions](game_examples/sprite_collisions)
 
-**Tilemap** -- [examples/tilemap](examples/tilemap)
+**Tilemap** -- [game_examples/tilemap](game_examplestilemap)
 
-**JSON High and Low Level Encoding and Decoding** -- [examples/json](examples/json) | [examples/json_lowlevel](examples/json_lowlevel)
+**JSON High and Low Level Encoding and Decoding** -- [game_examples/json](game_examples/json) | [examples/json_lowlevel](examples/json_lowlevel)
 
-**Bach MIDI** -- [examples/bach_midi](examples/bach_midi)
+**Bach MIDI** -- [game_examples/bach_midi](game_examples/bach_midi)
 
-**3D Library** -- [examples/3d_library](examples/3d_library)
+**3D Library** -- [game_examples/3d_library](game_examples/3d_library)
 
-**Sprite Game** -- [examples/spritegame](examples/spritegame)
+**Sprite Game** -- [game_examples/spritegame](game_examples/spritegame)
 
-**Conway's Game of Life** -- [examples/life](examples/life)
+**Conway's Game of Life** -- [game_examples/life](game_examples/life)
 
-**Bouncing Square** -- [examples/bouncing_square](examples/bouncing_square)
+**Bouncing Square** -- [game_examples/bouncing_square](game_examples/bouncing_square)
 
-**Go Logo** -- [examples/go_logo](examples/go_logo)
+**Go Logo** -- [game_examples/go_logo](game_examples/go_logo)
 
-**Hello World** -- [examples/hello_world](examples/hello_world)
+**Hello World** -- [game_examples/hello_world](game_examples/hello_world)
 
+
+## A Tour Of Go
+
+The official Go language tutorial — [A Tour of Go](https://go.dev/tour/) — has been adapted to run on Playdate with PdGo, out of the box, on both the Simulator and the device.
+
+If you are coming from C or Lua gamedev and want to learn Go, this is the fastest way to try every language feature hands-on: packages, functions, control flow, pointers, structs, arrays, slices, maps, closures, methods, interfaces, type assertions, generics, errors, and io.Reader — all running directly on Playdate hardware.
+
+All examples are located in the `tour_of_go/` directory. Each example is a self-contained PdGo project with its own `build.sh`.
+
+**Build all examples at once:**
+```bash
+cd tour_of_go
+chmod +x build_all.sh
+chmod +x */build.sh
+./build_all.sh
+```
+
+**Build a single example:**
+```bash
+cd tour_of_go/17_for
+chmod +x build.sh
+./build.sh
+```
+
+The examples cover Go fundamentals (01-26), pointers and structs (27-32), slices (33-41), maps (44-47), functions and closures (48-49), methods (50-57), interfaces (58-62), type assertions and switches (64-65), Stringer (66), errors (67), io.Reader (68), and generics (`generics_type_parameters`, `generics_generic_types`, `generics_all`).
+
+All examples are device-tested and avoid [known TinyGo ARM fmt issues](#known-issues-).
+
+---
 
 ## Roadmap
 
@@ -585,8 +677,10 @@ Each example includes a `build.sh` script that runs `pdgoc` with all necessary f
 - [ ] Make sure Lua interoperability works
 - [ ] Make sure C interoperability works
 - [X] Write documentation for API bindings
+- [x] Add Go-Tour like code examples to demostrate language's syntax and semantic to newcomers  
+- [ ] Add different benchmarks to compare Go with C and Lua
 - [ ] Investigate: concurrency: goroutines/scheduler support for single-threaded CPU
-- [ ] Investigate: GC support: (does it make sense for a very constrained embedded system like Playdate?)
+- [ ] Implement conservative mark-and-sweep GC for Playdate's constraints
 - [ ] Create unit tests for `pdgoc` and API bindings
 - [ ] Add support for Windows OS
 
@@ -626,9 +720,9 @@ go test ./config/... ./pdxinfo/... -v
 
 Verify all examples compile
 ```bash
-chmod +x examples/build_all.sh 
-chmod +x examples/*/build.sh
-./examples/build_all.sh
+chmod +x game_examples/build_all.sh 
+chmod +x game_examples/*/build.sh
+./game_examples/build_all.sh
 ```
 
 ## Community

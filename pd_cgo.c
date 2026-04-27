@@ -31,6 +31,31 @@ void tinygo_longjmp(void* buf) {
     while(1) {} // Infinite loop
 }
 
+// ============== ARM unwind / libc stubs ==============
+// libgcc unwind and newlib-nano libc reference these on bare-metal ARM.
+// Without them, any code that triggers libgcc linking (e.g. error interface,
+// panic handling, type assertions) fails to link.
+
+// ARM exception index boundaries — sections are discarded by linker script
+// but libgcc(unwind-arm.o) still references these symbols.
+char __exidx_start = 0;
+char __exidx_end = 0;
+
+void _exit(int status) {
+    (void)status;
+    pd->system->logToConsole("FATAL: _exit called - halting");
+    while(1) {}
+}
+
+int _kill(int pid, int sig) {
+    (void)pid; (void)sig;
+    return -1;
+}
+
+int _getpid(void) {
+    return 1;
+}
+
 // ============== TinyGo Runtime Support ==============
 // Only needed for TinyGo device builds
 

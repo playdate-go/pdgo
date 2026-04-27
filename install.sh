@@ -28,7 +28,7 @@ LLVM_VERSION="20"
 JOBS=${JOBS:-$(sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo 4)}
 
 echo -e "${CYAN}╔══════════════════════════════════════════════════════════╗${NC}"
-echo -e "${CYAN}║              PdGo - Full Installer                       ║${NC}"
+echo -e "${CYAN}║              PdGo (Golang for Playdate) - Full Installer ║${NC}"
 echo -e "${CYAN}╚══════════════════════════════════════════════════════════╝${NC}"
 echo ""
 
@@ -96,15 +96,88 @@ echo -e "${GREEN}All dependencies OK${NC}"
 echo ""
 echo -e "${YELLOW}[2/4] Installing pdgoc...${NC}"
 
-go install github.com/playdate-go/pdgo/cmd/pdgoc@latest
+# Detect if running from pdgo repo root
+if [ -d "cmd/pdgoc" ] && [ -f "go.mod" ]; then
+    echo "  Running from pdgo repository root - using local source"
 
-GOBIN="${GOBIN:-$(go env GOPATH)/bin}"
-if [ -f "$GOBIN/pdgoc" ]; then
+    # Get version info from local git
+    VERSION=$(git describe --tags --always --dirty 2>/dev/null || echo "dev")
+    COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+    DATE=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
+
+    echo "  Building pdgoc from local source..."
+    echo "    Version: $VERSION"
+    echo "    Commit:  $COMMIT"
+    echo "    Date:    $DATE"
+
+    cd cmd/pdgoc
+
+    echo "  Downloading Go dependencies..."
+    go mod tidy
+
+    GOBIN="${GOBIN:-$(go env GOPATH)/bin}"
+    mkdir -p "$GOBIN"
+
+    # Build with ldflags to inject version information
+    go build -ldflags="-X 'main.Version=$VERSION' -X 'main.Commit=$COMMIT' -X 'main.Date=$DATE'" -o "$GOBIN/pdgoc" .
+
     echo -e "  pdgoc installed at: ${GREEN}$GOBIN/pdgoc${NC}"
+
+    # Set flag for TinyGo patches to use local files
+    USE_LOCAL_PATCHES=true
+    LOCAL_REPO_ROOT=$(pwd)/../..
 else
-    echo -e "${RED}Failed to install pdgoc${NC}"
-    exit 1
+    # Running from curl - download from GitHub
+    echo "  Running from curl - downloading from GitHub"
+
+    # Create a temporary directory for building pdgoc
+    BUILD_DIR=$(mktemp -d)
+    trap "rm -rf $BUILD_DIR" EXIT
+
+    echo "  Downloading pdgo source..."
+
+    # Try to get version info from GitHub API
+    GITHUB_API="https://api.github.com/repos/playdate-go/pdgo"
+    LATEST_TAG=$(curl -s "${GITHUB_API}/releases/latest" | grep '"tag_name"' | sed -E 's/.*"tag_name": ?"([^"]+)".*/\1/' 2>/dev/null || echo "")
+    LATEST_COMMIT=$(curl -s "${GITHUB_API}/commits/main" | grep '"sha"' | head -1 | sed -E 's/.*"sha": ?"([^"]+)".*/\1/' 2>/dev/null | cut -c1-7 || echo "unknown")
+
+    VERSION=${LATEST_TAG:-"latest"}
+    COMMIT=${LATEST_COMMIT:-"unknown"}
+    DATE=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
+
+    # Download and extract source
+    if [ -n "$LATEST_TAG" ]; then
+        echo "  Downloading release $LATEST_TAG..."
+        curl -sL "https://github.com/playdate-go/pdgo/archive/refs/tags/${LATEST_TAG}.tar.gz" | tar -xz -C "$BUILD_DIR"
+        SOURCE_DIR="$BUILD_DIR/pdgo-${LATEST_TAG#v}"
+    else
+        echo "  Downloading latest source..."
+        curl -sL "https://github.com/playdate-go/pdgo/archive/refs/heads/main.tar.gz" | tar -xz -C "$BUILD_DIR"
+        SOURCE_DIR="$BUILD_DIR/pdgo-main"
+    fi
+
+    cd "$SOURCE_DIR/cmd/pdgoc"
+
+    echo "  Downloading Go dependencies..."
+    go mod tidy
+
+    echo "  Building pdgoc..."
+    echo "    Version: $VERSION"
+    echo "    Commit:  $COMMIT"
+    echo "    Date:    $DATE"
+
+    GOBIN="${GOBIN:-$(go env GOPATH)/bin}"
+    mkdir -p "$GOBIN"
+
+    # Build with ldflags to inject version information
+    go build -ldflags="-X 'main.Version=$VERSION' -X 'main.Commit=$COMMIT' -X 'main.Date=$DATE'" -o "$GOBIN/pdgoc" .
+
+    echo -e "  pdgoc installed at: ${GREEN}$GOBIN/pdgoc${NC}"
+
+    # Set flag for TinyGo patches to download from GitHub
+    USE_LOCAL_PATCHES=false
 fi
+
 
 # Check if GOBIN is in PATH
 if ! command -v pdgoc &>/dev/null; then
@@ -159,171 +232,53 @@ else
     # Add Playdate support files BEFORE building (required for gc.playdate)
     echo "  Adding Playdate support files..."
 
-    # playdate.json
-    cat > "$TINYGO_DIR/targets/playdate.json" << 'EOF'
-{
-    "inherits": ["cortex-m"],
-    "llvm-target": "thumbv7em-unknown-unknown-eabihf",
-    "cpu": "cortex-m7",
-    "features": "+armv7e-m,+dsp,+hwdiv,+thumb-mode,+fp-armv8d16sp,+vfp4d16sp",
-    "build-tags": ["playdate", "tinygo", "gc.playdate"],
-    "gc": "playdate",
-    "scheduler": "none",
-    "serial": "none",
-    "automatic-stack-size": false,
-    "default-stack-size": 131072,
-    "cflags": ["-DTARGET_PLAYDATE=1", "-mfloat-abi=hard", "-mfpu=fpv5-sp-d16"]
-}
-EOF
+    # Define patch files by destination directory
+    # Format: "source_file:destination_file"
+    PATCHES_TARGETS=(
+        "playdate.json:targets/playdate.json"
+        "playdate.ld:targets/playdate.ld"
+    )
 
-    # playdate.ld
-    cat > "$TINYGO_DIR/targets/playdate.ld" << 'EOF'
-ENTRY(eventHandlerShim)
+    PATCHES_RUNTIME=(
+        "runtime_playdate.go:src/runtime/runtime_playdate.go"
+        "gc_playdate.go:src/runtime/gc_playdate.go"
+    )
 
-SECTIONS
-{
-    .text : ALIGN(4) {
-        KEEP(*(.text.eventHandlerShim))
-        KEEP(*(.text.eventHandler))
-        KEEP(*(.text.updateCallback))
-        KEEP(*(.text.runtime_init))
-        *(.text) *(.text.*) *(.rodata) *(.rodata.*)
-        KEEP(*(.init)) KEEP(*(.fini))
-        . = ALIGN(4);
-    }
-    .data : ALIGN(4) {
-        __data_start__ = .; *(.data) *(.data.*) . = ALIGN(4); __data_end__ = .;
-    }
-    .bss (NOLOAD) : ALIGN(4) {
-        __bss_start__ = .; _sbss = .; *(.bss) *(.bss.*) *(COMMON) . = ALIGN(4); __bss_end__ = .; _ebss = .;
-    }
-    /DISCARD/ : { *(.ARM.exidx*) *(.ARM.extab*) }
-    _sidata = LOADADDR(.data);
-    _sdata = __data_start__; _edata = __data_end__;
-    _globals_start = __data_start__; _globals_end = __bss_end__;
-    _stack_top = __bss_end__;
-}
-EOF
+    if [ "$USE_LOCAL_PATCHES" = true ]; then
+        # Use local patch files from the repository
+        echo "  Using local Playdate patches from repository..."
 
-    # runtime_playdate.go
-    cat > "$TINYGO_DIR/src/runtime/runtime_playdate.go" << 'EOF'
-//go:build playdate
+        LOCAL_PATCHES_DIR="${LOCAL_REPO_ROOT}/cmd/pdgoc/tinygo-patches"
 
-package runtime
+        # Copy all patch files
+        for patch in "${PATCHES_TARGETS[@]}" "${PATCHES_RUNTIME[@]}"; do
+            IFS=':' read -r src dst <<< "$patch"
+            if ! cp "${LOCAL_PATCHES_DIR}/${src}" "$TINYGO_DIR/${dst}"; then
+                echo -e "${RED}Failed to copy ${src}${NC}"
+                exit 1
+            fi
+        done
 
-import "unsafe"
+        echo -e "  ${GREEN}Playdate patches applied from local files${NC}"
+    else
+        # Download patch files from GitHub
+        echo "  Downloading Playdate patches from GitHub..."
 
-//go:extern _cgo_pd_realloc
-func _cgo_pd_realloc(ptr unsafe.Pointer, size uintptr) unsafe.Pointer
+        # Determine the branch/tag to use for downloading patches
+        PDGO_BRANCH=${PDGO_BRANCH:-"main"}
+        PATCHES_BASE_URL="https://raw.githubusercontent.com/playdate-go/pdgo/${PDGO_BRANCH}/cmd/pdgoc/tinygo-patches"
 
-//go:extern _cgo_pd_getCurrentTimeMS
-func _cgo_pd_getCurrentTimeMS() uint32
+        # Download all patch files
+        for patch in "${PATCHES_TARGETS[@]}" "${PATCHES_RUNTIME[@]}"; do
+            IFS=':' read -r src dst <<< "$patch"
+            if ! curl -sL "${PATCHES_BASE_URL}/${src}" -o "$TINYGO_DIR/${dst}"; then
+                echo -e "${RED}Failed to download ${src}${NC}"
+                exit 1
+            fi
+        done
 
-//go:extern _cgo_pd_logToConsole
-func _cgo_pd_logToConsole(msg *byte)
-
-// runtime_init is called from C to initialize the Go runtime
-//export runtime_init
-func runtime_init() {
-    initAll()
-}
-
-func ticks() timeUnit {
-    return timeUnit(_cgo_pd_getCurrentTimeMS()) * 1000000
-}
-
-func sleepTicks(d timeUnit) {}
-
-func nanosecondsToTicks(ns int64) timeUnit { return timeUnit(ns) }
-
-func ticksToNanoseconds(t timeUnit) int64 { return int64(t) }
-
-var printBuf [256]byte
-var printBufIdx int
-
-func putchar(c byte) {
-    if c == '\n' || printBufIdx >= len(printBuf)-1 {
-        printBuf[printBufIdx] = 0
-        _cgo_pd_logToConsole(&printBuf[0])
-        printBufIdx = 0
-    } else {
-        printBuf[printBufIdx] = c
-        printBufIdx++
-    }
-}
-EOF
-
-    # gc_playdate.go
-    cat > "$TINYGO_DIR/src/runtime/gc_playdate.go" << 'EOF'
-//go:build gc.playdate
-
-package runtime
-
-import (
-    "unsafe"
-)
-
-const needsStaticHeap = false
-
-var gcTotalAlloc uint64
-var gcMallocs uint64
-var gcFrees uint64
-
-//go:noinline
-func alloc(size uintptr, layout unsafe.Pointer) unsafe.Pointer {
-    size = align(size)
-    gcTotalAlloc += uint64(size)
-    gcMallocs++
-
-    ptr := _cgo_pd_realloc(nil, size)
-    if ptr == nil {
-        runtimePanic("out of memory")
-    }
-
-    memzero(ptr, size)
-    return ptr
-}
-
-func realloc(ptr unsafe.Pointer, size uintptr) unsafe.Pointer {
-    size = align(size)
-    newPtr := _cgo_pd_realloc(ptr, size)
-    if newPtr == nil && size > 0 {
-        runtimePanic("out of memory")
-    }
-    return newPtr
-}
-
-func free(ptr unsafe.Pointer) {
-    if ptr != nil {
-        _cgo_pd_realloc(ptr, 0)
-        gcFrees++
-    }
-}
-
-func markRoots(start, end uintptr) {}
-
-func ReadMemStats(m *MemStats) {
-    m.HeapIdle = 0
-    m.HeapInuse = gcTotalAlloc
-    m.HeapReleased = 0
-    m.HeapSys = m.HeapInuse + m.HeapIdle
-    m.GCSys = 0
-    m.TotalAlloc = gcTotalAlloc
-    m.Mallocs = gcMallocs
-    m.Frees = gcFrees
-    m.Sys = gcTotalAlloc
-    m.HeapAlloc = gcTotalAlloc
-    m.Alloc = m.HeapAlloc
-}
-
-func GC() {}
-
-func SetFinalizer(obj interface{}, finalizer interface{}) {}
-
-func initHeap() {}
-
-func setHeapEnd(newHeapEnd uintptr) {}
-EOF
+        echo -e "  ${GREEN}Playdate patches applied successfully${NC}"
+    fi
 
     # Check for system LLVM (Linux only)
     USE_SYSTEM_LLVM=false
