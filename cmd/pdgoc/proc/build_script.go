@@ -10,7 +10,7 @@ const rawBuildScript = `#!/bin/bash
 set -e
 
 # TinyGo with Playdate support
-TINYGO="${TINYGO_PLAYDATE:-$HOME/tinygo-playdate/build/tinygo}"
+TINYGO="${TINYGO_PLAYDATE:-$HOME/tinygo-playdate/bin/tinygo}"
 TINYGO_DIR="${TINYGO_PLAYDATE_DIR:-$HOME/tinygo-playdate}"
 
 # Playdate SDK path

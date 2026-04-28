@@ -32,43 +32,11 @@ This installs **everything** you need:
 - Configures your PATH automatically
 
 
-> [!IMPORTANT]
-> The install script will automatically compile LLVM from source (in example ~9 minutes on Apple Silicon M5 Pro (15 CPU) and ~25-30 minutes on Apple Sillicon M1 (8-CPU), only needed once).
-
-### Pre-install LLVM (Linux only - speeds up build)
-
-#### Ubuntu/Debian
-```bash
-wget https://apt.llvm.org/llvm.sh
-chmod +x llvm.sh
-sudo ./llvm.sh 20
-sudo apt install clang-20 llvm-20-dev lld-20 libclang-20-dev
-```
-
-#### Fedora
-```bash
-sudo dnf install llvm20-devel clang20-devel lld20-devel
-```
-
-#### Arch Linux
-```bash
-sudo pacman -S llvm clang lld
-```
-
 ### ARM Toolchain
 
 - **macOS**: Included with Playdate SDK - no separate installation needed
 - **Linux**: Install via package manager: `sudo apt install gcc-arm-none-eabi`
 
-### Options
-
-```bash
-# Skip TinyGo build (simulator-only, instant install)
-SKIP_TINYGO=1 curl -fsSL https://raw.githubusercontent.com/playdate-go/pdgo/main/install.sh | bash
-
-# Custom parallel jobs
-JOBS=8 curl -fsSL https://raw.githubusercontent.com/playdate-go/pdgo/main/install.sh | bash
-```
 
 ### Installation Modes
 
@@ -88,18 +56,43 @@ The installer automatically detects which mode to use by checking for `cmd/pdgoc
 
 ### What the installer does
 
-1. **Installs pdgoc** - `go install github.com/playdate-go/pdgo/cmd/pdgoc@latest`
-2. **Clones TinyGo** - downloads TinyGo v0.40.1 to `~/tinygo-playdate`
-3. **Sets up LLVM** - uses system LLVM (Linux) or builds from source (macOS)
-4. **Adds Playdate support** - injects custom files into TinyGo:
+1. **Installs pdgoc** - builds from source with version info injected
+2. **Downloads TinyGo** - downloads the official pre-compiled TinyGo v0.40.1 release for your OS/arch to `~/tinygo-playdate`
+3. **Adds Playdate support** - injects custom files into TinyGo:
    - `playdate.json` - target config (Cortex-M7, custom GC, no scheduler)
    - `playdate.ld` - linker script (memory layout, entry point)
    - `runtime_playdate.go` - platform runtime (time, console output via SDK)
-   - `gc_playdate.go` - leaking GC type (heap allocations never reclaimed unless manually freed)
-5. **Builds TinyGo** - compiles with Playdate support
-6. **Configures PATH** - adds `pdgoc` and `tinygo` to your shell
+   - `gc_playdate.go` - leaking GC type (heap allocations never reclaimed unless manually freed, GC will be implemented later, plese see https://github.com/playdate-go/pdgo/issues/6)
+4. **Configures PATH** - adds `pdgoc` and `tinygo` to your shell
 
-Result: `~/tinygo-playdate/build/tinygo` - a TinyGo compiler that accepts `-target=playdate`
+Result: `~/tinygo-playdate/bin/tinygo` - a TinyGo compiler that accepts `-target=playdate`
+
+### How TinyGo with Playdate support works
+
+Unlike standard Go where the runtime is baked into the compiler binary, **TinyGo keeps its runtime as plain `.go` source files on disk** (`src/runtime/*.go`). Every time you run `tinygo build`, the compiler reads and compiles those runtime sources fresh as part of your project.
+
+This is what makes the Playdate support strategy possible:
+
+```
+1. Download official TinyGo release (pre-compiled binary for your platform)
+                          │
+                          ▼
+2. Inject Playdate patches into the TinyGo directory:
+   ├── targets/playdate.json        ← target config (read at build time)
+   ├── targets/playdate.ld          ← linker script (read at build time)
+   ├── src/runtime/runtime_playdate.go  ← Playdate runtime (compiled per build)
+   └── src/runtime/gc_playdate.go       ← Playdate GC (compiled per build)
+                          │
+                          ▼
+3. When you build a game (pdgoc -device):
+   TinyGo reads targets/playdate.json
+       → compiles src/runtime/runtime_playdate.go + gc_playdate.go
+       → compiles your game code
+       → links everything together using playdate.ld
+       → produces ARM ELF binary for Playdate hardware
+```
+
+The patches are **not** compiled into the `tinygo` binary itself — they are loose source files that TinyGo picks up and compiles on every build. This means you get a fully working Playdate toolchain in ~1-2 minutes instead of building TinyGo from source (~25 minutes).
 
 > [!WARNING]
 > Windows is not currently supported. Linux and macOS only.
