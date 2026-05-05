@@ -11,10 +11,6 @@ import (
 	"github.com/playdate-go/pdgo/cmd/pdgoc/scripts"
 )
 
-func GetBuildScriptFilename() string {
-	return "device-build-*.sh"
-}
-
 func GetBuildScript() []byte {
 	return scripts.DeviceBuildScriptUnix
 }
@@ -29,6 +25,10 @@ func GetLs(path string) (string, []string) {
 
 func GetShellExecutableName() string {
 	return "bash"
+}
+
+func GetShellArgs() []string {
+	return []string{"-c"}
 }
 
 func GetTinyGoPath() string {

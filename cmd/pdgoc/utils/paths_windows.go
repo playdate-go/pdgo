@@ -40,16 +40,16 @@ func GetLs(path string) (string, []string) {
 	return "cmd", []string{"/c", "dir", "/b", "/w", path}
 }
 
-func GetBuildScriptFilename() string {
-	return "device-build-*.ps1"
-}
-
 func GetBuildScript() []byte {
 	return scripts.DeviceBuildScriptWindows
 }
 
 func GetShellExecutableName() string {
 	return "powershell.exe"
+}
+
+func GetShellArgs() []string {
+	return []string{"-NoProfile", "-NonInteractive", "-Command"}
 }
 
 func GetTinyGoPath() string {

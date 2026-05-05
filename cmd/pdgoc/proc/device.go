@@ -91,34 +91,12 @@ func (p *Processor) runBuildScript() error {
 	}
 	log.Printf("successfully ran 'go mod tidy'")
 
-	// Create temporary build script
-	buildScriptFile, err := os.CreateTemp("", utils.GetBuildScriptFilename())
-	if err != nil {
-		return fmt.Errorf("failed to create temp build script file: %s", err)
-	}
-	defer func() {
-		if err = os.Remove(buildScriptFile.Name()); err != nil {
-			log.Printf("warning: failed to remove temp file: %s", err)
-		}
-	}()
-
-	if _, err = buildScriptFile.WriteString(string(utils.GetBuildScript())); err != nil {
-		return fmt.Errorf("failed to write temp file '%s': %s", buildScriptFile.Name(), err)
-	}
-	if err = buildScriptFile.Close(); err != nil {
-		log.Printf("warning: failed to close temp file '%s': %s", buildScriptFile.Name(), err)
-	}
-
-	if err = os.Chmod(buildScriptFile.Name(), 0755); err != nil {
-		return fmt.Errorf("warning: failed to chmod build script: %s", err)
-	}
-
 	// Run the build script
 	sdkPath, err := utils.GetPlaydateSDKPath()
 	if err != nil {
 		return fmt.Errorf("failed to retrieve PlayDate SDK path before build: %w", err)
 	}
-	cmd := exec.Command(utils.GetShellExecutableName(), buildScriptFile.Name())
+	cmd := exec.Command(utils.GetShellExecutableName(), append(utils.GetShellArgs(), string(utils.GetBuildScript()))...)
 	cmd.Dir = goSrcDir
 	cmd.Env = append(os.Environ(),
 		"GAME_NAME="+p.cfg.Meta.Name,
