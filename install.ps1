@@ -141,7 +141,10 @@ Write-Host "`n[2/4] Installing pdgoc..." -ForegroundColor Yellow
 if ($isLocalBuild) {
     Write-Host "Installing pdgo from local directory"
     Set-Location $localRoot\cmd\pdgoc
-    go install
+    $localVersion = git describe --tags --always --dirty
+    $localCommit = git rev-parse --short HEAD
+    $localDate = (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss UTC")
+    go install -ldflags="-X 'main.Version=$localVersion' -X 'main.Commit=$localCommit' -X 'main.Date=$localDate'"
 } else {
     go install github.com/playdate-go/pdgo/cmd/pdgoc@latest
 }
