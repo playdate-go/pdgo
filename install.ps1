@@ -177,174 +177,20 @@ if ($skipTinyGo) {
 
     Write-Host "  Injecting Playdate support files..."
 
+    $pdgoReleaseData = Invoke-RestMethod -Uri "https://api.github.com/repos/playdate-go/pdgo/releases/latest"
+    $pdgoReleaseTag = $pdgoReleaseData.tag_name
+
     $targetsDir = Join-Path $tinygoDir "targets"
     $runtimeDir = Join-Path (Join-Path $tinygoDir "src") "runtime"
 
     # targets/playdate.json
-    @'
-{
-    "inherits": ["cortex-m"],
-    "llvm-target": "thumbv7em-unknown-unknown-eabihf",
-    "cpu": "cortex-m7",
-    "features": "+armv7e-m,+dsp,+hwdiv,+thumb-mode,+fp-armv8d16sp,+vfp4d16sp",
-    "build-tags": ["playdate", "tinygo", "gc.playdate"],
-    "gc": "playdate",
-    "scheduler": "none",
-    "serial": "none",
-    "automatic-stack-size": false,
-    "default-stack-size": 131072,
-    "cflags": ["-DTARGET_PLAYDATE=1", "-mfloat-abi=hard", "-mfpu=fpv5-sp-d16"]
-}
-'@ | Set-Content (Join-Path $targetsDir "playdate.json") -Encoding UTF8
-
+    Invoke-WebRequest -Uri "https://raw.githubusercontent.com/playdate-go/pdgo/refs/tags/$pdgoReleaseTag/cmd/pdgoc/tinygo-patches/playdate.json" -OutFile (Join-Path $targetsDir "playdate.json")
     # targets/playdate.ld
-    @'
-ENTRY(eventHandlerShim)
-
-SECTIONS
-{
-    .text : ALIGN(4) {
-        KEEP(*(.text.eventHandlerShim))
-        KEEP(*(.text.eventHandler))
-        KEEP(*(.text.updateCallback))
-        KEEP(*(.text.runtime_init))
-        *(.text) *(.text.*) *(.rodata) *(.rodata.*)
-        KEEP(*(.init)) KEEP(*(.fini))
-        . = ALIGN(4);
-    }
-    .data : ALIGN(4) {
-        __data_start__ = .; *(.data) *(.data.*) . = ALIGN(4); __data_end__ = .;
-    }
-    .bss (NOLOAD) : ALIGN(4) {
-        __bss_start__ = .; _sbss = .; *(.bss) *(.bss.*) *(COMMON) . = ALIGN(4); __bss_end__ = .; _ebss = .;
-    }
-    /DISCARD/ : { *(.ARM.exidx*) *(.ARM.extab*) }
-    _sidata = LOADADDR(.data);
-    _sdata = __data_start__; _edata = __data_end__;
-    _globals_start = __data_start__; _globals_end = __bss_end__;
-    _stack_top = __bss_end__;
-}
-'@ | Set-Content (Join-Path $targetsDir "playdate.ld") -Encoding UTF8
-
+    Invoke-WebRequest -Uri "https://raw.githubusercontent.com/playdate-go/pdgo/refs/tags/$pdgoReleaseTag/cmd/pdgoc/tinygo-patches/playdate.ld" -OutFile (Join-Path $targetsDir "playdate.ld")
     # src/runtime/runtime_playdate.go
-    @'
-//go:build playdate
-
-package runtime
-
-import "unsafe"
-
-//go:extern _cgo_pd_realloc
-func _cgo_pd_realloc(ptr unsafe.Pointer, size uintptr) unsafe.Pointer
-
-//go:extern _cgo_pd_getCurrentTimeMS
-func _cgo_pd_getCurrentTimeMS() uint32
-
-//go:extern _cgo_pd_logToConsole
-func _cgo_pd_logToConsole(msg *byte)
-
-// runtime_init is called from C to initialize the Go runtime
-//export runtime_init
-func runtime_init() {
-    initAll()
-}
-
-func ticks() timeUnit {
-    return timeUnit(_cgo_pd_getCurrentTimeMS()) * 1000000
-}
-
-func sleepTicks(d timeUnit) {}
-
-func nanosecondsToTicks(ns int64) timeUnit { return timeUnit(ns) }
-
-func ticksToNanoseconds(t timeUnit) int64 { return int64(t) }
-
-var printBuf [256]byte
-var printBufIdx int
-
-func putchar(c byte) {
-    if c == '\n' || printBufIdx >= len(printBuf)-1 {
-        printBuf[printBufIdx] = 0
-        _cgo_pd_logToConsole(&printBuf[0])
-        printBufIdx = 0
-    } else {
-        printBuf[printBufIdx] = c
-        printBufIdx++
-    }
-}
-'@ | Set-Content (Join-Path $runtimeDir "runtime_playdate.go") -Encoding UTF8
-
+    Invoke-WebRequest -Uri "https://raw.githubusercontent.com/playdate-go/pdgo/refs/tags/$pdgoReleaseTag/cmd/pdgoc/tinygo-patches/runtime_playdate.go" -OutFile (Join-Path $runtimeDir "runtime_playdate.go")
     # src/runtime/gc_playdate.go
-    @'
-//go:build gc.playdate
-
-package runtime
-
-import (
-    "unsafe"
-)
-
-const needsStaticHeap = false
-
-var gcTotalAlloc uint64
-var gcMallocs uint64
-var gcFrees uint64
-
-//go:noinline
-func alloc(size uintptr, layout unsafe.Pointer) unsafe.Pointer {
-    size = align(size)
-    gcTotalAlloc += uint64(size)
-    gcMallocs++
-
-    ptr := _cgo_pd_realloc(nil, size)
-    if ptr == nil {
-        runtimePanic("out of memory")
-    }
-
-    memzero(ptr, size)
-    return ptr
-}
-
-func realloc(ptr unsafe.Pointer, size uintptr) unsafe.Pointer {
-    size = align(size)
-    newPtr := _cgo_pd_realloc(ptr, size)
-    if newPtr == nil && size > 0 {
-        runtimePanic("out of memory")
-    }
-    return newPtr
-}
-
-func free(ptr unsafe.Pointer) {
-    if ptr != nil {
-        _cgo_pd_realloc(ptr, 0)
-        gcFrees++
-    }
-}
-
-func markRoots(start, end uintptr) {}
-
-func ReadMemStats(m *MemStats) {
-    m.HeapIdle = 0
-    m.HeapInuse = gcTotalAlloc
-    m.HeapReleased = 0
-    m.HeapSys = m.HeapInuse + m.HeapIdle
-    m.GCSys = 0
-    m.TotalAlloc = gcTotalAlloc
-    m.Mallocs = gcMallocs
-    m.Frees = gcFrees
-    m.Sys = gcTotalAlloc
-    m.HeapAlloc = gcTotalAlloc
-    m.Alloc = m.HeapAlloc
-}
-
-func GC() {}
-
-func SetFinalizer(obj interface{}, finalizer interface{}) {}
-
-func initHeap() {}
-
-func setHeapEnd(newHeapEnd uintptr) {}
-'@ | Set-Content (Join-Path $runtimeDir "gc_playdate.go") -Encoding UTF8
+    Invoke-WebRequest -Uri "https://raw.githubusercontent.com/playdate-go/pdgo/refs/tags/$pdgoReleaseTag/cmd/pdgoc/tinygo-patches/gc_playdate.go" -OutFile (Join-Path $runtimeDir "gc_playdate.go")
 
     Write-Host "  Installing Go 1.25.8 as required by TinyGo:"
     Invoke-Expression "scoop install go@1.25.8"
