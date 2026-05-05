@@ -11,6 +11,9 @@
 
 $ErrorActionPreference = 'Stop'
 
+$isLocalBuild = (Test-Path -Path .\cmd\pdgoc) -and (Test-Path -Path .\go.mod)
+$localRoot = (Get-Location).Path
+
 # Options via environment variables
 $skipTinyGo = $env:SKIP_TINYGO -eq "1"
 $autoInstallDeps = $env:AUTO_INSTALL_DEPS -eq "1"
@@ -135,7 +138,13 @@ Write-Host "All dependencies OK" -ForegroundColor Green
 # ============================================================================
 Write-Host "`n[2/4] Installing pdgoc..." -ForegroundColor Yellow
 
-go install github.com/playdate-go/pdgo/cmd/pdgoc@latest
+if ($isLocalBuild) {
+    Write-Host "Installing pdgo from local directory"
+    Set-Location $localRoot\cmd\pdgoc
+    go install
+} else {
+    go install github.com/playdate-go/pdgo/cmd/pdgoc@latest
+}
 
 $goPath = go env GOPATH
 $goBin = if ($env:GOBIN) { $env:GOBIN } else { Join-Path $goPath "bin" }
@@ -183,14 +192,27 @@ if ($skipTinyGo) {
     $targetsDir = Join-Path $tinygoDir "targets"
     $runtimeDir = Join-Path (Join-Path $tinygoDir "src") "runtime"
 
-    # targets/playdate.json
-    Invoke-WebRequest -Uri "https://raw.githubusercontent.com/playdate-go/pdgo/refs/tags/$pdgoReleaseTag/cmd/pdgoc/tinygo-patches/playdate.json" -OutFile (Join-Path $targetsDir "playdate.json")
-    # targets/playdate.ld
-    Invoke-WebRequest -Uri "https://raw.githubusercontent.com/playdate-go/pdgo/refs/tags/$pdgoReleaseTag/cmd/pdgoc/tinygo-patches/playdate.ld" -OutFile (Join-Path $targetsDir "playdate.ld")
-    # src/runtime/runtime_playdate.go
-    Invoke-WebRequest -Uri "https://raw.githubusercontent.com/playdate-go/pdgo/refs/tags/$pdgoReleaseTag/cmd/pdgoc/tinygo-patches/runtime_playdate.go" -OutFile (Join-Path $runtimeDir "runtime_playdate.go")
-    # src/runtime/gc_playdate.go
-    Invoke-WebRequest -Uri "https://raw.githubusercontent.com/playdate-go/pdgo/refs/tags/$pdgoReleaseTag/cmd/pdgoc/tinygo-patches/gc_playdate.go" -OutFile (Join-Path $runtimeDir "gc_playdate.go")
+    if ($isLocalBuild) {
+        Write-Host "Patching TinyGo with local files"
+        Set-Location $localRoot
+        # targets/playdate.json
+        Copy-Item -Path ".\cmd\pdgoc\tinygo-patches\playdate.json" -Destination (Join-Path $targetsDir "playdate.json")
+        # targets/playdate.ld
+        Copy-Item -Path ".\cmd\pdgoc\tinygo-patches\playdate.ld" -Destination (Join-Path $targetsDir "playdate.ld")
+        # src/runtime/runtime_playdate.go
+        Copy-Item -Path ".\cmd\pdgoc\tinygo-patches\runtime_playdate.go" -Destination (Join-Path $runtimeDir "runtime_playdate.go")
+        # src/runtime/gc_playdate.go
+        Copy-Item -Path ".\cmd\pdgoc\tinygo-patches\gc_playdate.go" -Destination (Join-Path $runtimeDir "gc_playdate.go")
+    } else {
+        # targets/playdate.json
+        Invoke-WebRequest -Uri "https://raw.githubusercontent.com/playdate-go/pdgo/refs/tags/$pdgoReleaseTag/cmd/pdgoc/tinygo-patches/playdate.json" -OutFile (Join-Path $targetsDir "playdate.json")
+        # targets/playdate.ld
+        Invoke-WebRequest -Uri "https://raw.githubusercontent.com/playdate-go/pdgo/refs/tags/$pdgoReleaseTag/cmd/pdgoc/tinygo-patches/playdate.ld" -OutFile (Join-Path $targetsDir "playdate.ld")
+        # src/runtime/runtime_playdate.go
+        Invoke-WebRequest -Uri "https://raw.githubusercontent.com/playdate-go/pdgo/refs/tags/$pdgoReleaseTag/cmd/pdgoc/tinygo-patches/runtime_playdate.go" -OutFile (Join-Path $runtimeDir "runtime_playdate.go")
+        # src/runtime/gc_playdate.go
+        Invoke-WebRequest -Uri "https://raw.githubusercontent.com/playdate-go/pdgo/refs/tags/$pdgoReleaseTag/cmd/pdgoc/tinygo-patches/gc_playdate.go" -OutFile (Join-Path $runtimeDir "gc_playdate.go")
+    }
 
     Write-Host "  Installing Go 1.25.8 as required by TinyGo:"
     Invoke-Expression "scoop install go@1.25.8"
