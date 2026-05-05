@@ -56,59 +56,33 @@ Write-Host "Step 1: Compiling C runtime..."
 
 # Step 2: Create linker script and TinyGo target
 Write-Host "Step 2: Configuring build..."
-$ldScript = @"
-ENTRY(eventHandlerShim)
-
-SECTIONS
-{
-    .text : ALIGN(4) {
-        KEEP(*(.text.eventHandlerShim))
-        KEEP(*(.text.eventHandler))
-        KEEP(*(.text.updateCallback))
-        KEEP(*(.text.runtime_init))
-        *(.text) *(.text.*) *(.rodata) *(.rodata.*)
-        KEEP(*(.init)) KEEP(*(.fini))
-        . = ALIGN(4);
-    }
-    .data : ALIGN(4) {
-        __data_start__ = .; *(.data) *(.data.*) . = ALIGN(4); __data_end__ = .;
-    }
-    .bss (NOLOAD) : ALIGN(4) {
-        __bss_start__ = .; _sbss = .; *(.bss) *(.bss.*) *(COMMON) . = ALIGN(4); __bss_end__ = .; _ebss = .;
-    }
-    /DISCARD/ : { *(.ARM.exidx*) *(.ARM.extab*) }
-    _sidata = LOADADDR(.data);
-    _sdata = __data_start__; _edata = __data_end__;
-    _globals_start = __data_start__; _globals_end = __bss_end__;
-    _stack_top = __bss_end__;
-}
-"@
-Set-Content -Path "$BuildDirAbs/playdate.ld" -Value $ldScript
-
 $targetsDir = Join-Path $TinyGoDir "targets"
-if (-not (Test-Path $targetsDir)) { New-Item -ItemType Directory -Force -Path $targetsDir | Out-Null }
+$ldSource = Join-Path $targetsDir "playdate.ld"
+$jsonSource = Join-Path $targetsDir "playdate.json"
+$ldDest = Join-Path $BuildDirAbs "playdate.ld"
+
+# Copy linker script from TinyGo installation (installed by install.sh/ps1)
+if (-not (Test-Path $ldSource)) {
+    Write-Error "Error: playdate.ld not found in $targetsDir\ — run install script first"
+    exit 1
+}
+Copy-Item -Path $ldSource -Destination $ldDest -Force
+
+# Extend the installed playdate.json with build-specific linkerscript and ldflags
+if (-not (Test-Path $jsonSource)) {
+    Write-Error "Error: playdate.json not found in $targetsDir\ — run install script first"
+    exit 1
+}
 
 # Replace backslashes with forward slashes to prevent JSON escaping errors on Windows
 $BuildDirJson = $BuildDirAbs -replace '\\', '/'
 
-$targetJson = @"
-{
-    "inherits": ["cortex-m"],
-    "llvm-target": "thumbv7em-unknown-unknown-eabihf",
-    "cpu": "cortex-m7",
-    "features": "+armv7e-m,+dsp,+hwdiv,+thumb-mode,+fp-armv8d16sp,+vfp4d16sp",
-    "build-tags": ["playdate", "tinygo", "gc.playdate"],
-    "gc": "playdate",
-    "scheduler": "none",
-    "serial": "none",
-    "automatic-stack-size": false,
-    "default-stack-size": 131072,
-    "linkerscript": "$BuildDirJson/playdate.ld",
-    "cflags": ["-DTARGET_PLAYDATE=1", "-mfloat-abi=hard", "-mfpu=fpv5-sp-d16"],
-    "ldflags": ["-L$BuildDirJson", "-lpd"]
-}
-"@
-Set-Content -Path "$targetsDir/playdate.json" -Value $targetJson
+# Safely parse and update JSON properties (Idempotent equivalent to the bash cat << EOF append)
+$targetJson = Get-Content -Path $jsonSource -Raw | ConvertFrom-Json
+$targetJson | Add-Member -NotePropertyName "linkerscript" -NotePropertyValue "$BuildDirJson/playdate.ld" -Force
+$targetJson | Add-Member -NotePropertyName "ldflags" -NotePropertyValue @("-L$BuildDirJson", "-lpd") -Force
+
+$targetJson | ConvertTo-Json -Depth 10 | Set-Content -Path $jsonSource
 
 # Step 3: Build with TinyGo
 Write-Host "Step 3: Compiling Go code with TinyGo..."
