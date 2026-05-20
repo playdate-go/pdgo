@@ -25,7 +25,7 @@ func main() {
 	log.Printf("date: %s", Date)
 
 	if runtime.GOOS == "windows" {
-		log.Print("windows support is experimental, only -run and -sim flags are supported")
+		log.Print("windows support is experimental, report issues at https://github.com/playdate-go/pdgo/issue")
 	}
 
 	sdkPath, err := utils.GetPlaydateSDKPath()

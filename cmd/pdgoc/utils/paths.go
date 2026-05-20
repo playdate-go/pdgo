@@ -62,3 +62,20 @@ func GetPdcPath() (string, error) {
 
 	return path.Join(sdkPath, GetExecutable("bin/pdc")), nil
 }
+
+func GetPdutilPath() (string, error) {
+	sdkPath, err := GetPlaydateSDKPath()
+	if err != nil {
+		return "", err
+	}
+
+	return path.Join(sdkPath, GetExecutable("bin/pdutil")), nil
+}
+
+func GetTinyGoDir() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	return path.Join(home, "tinygo-playdate")
+}
