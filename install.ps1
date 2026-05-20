@@ -22,6 +22,37 @@ $jobs = if ($env:JOBS) { $env:JOBS } else { (Get-CimInstance Win32_ComputerSyste
 $tinygoDir = Join-Path $HOME "tinygo-playdate"
 $tinygoVersion = "0.40.1"
 
+# Version info for building pdgoc and fetching patches
+$pdgoVersion = "latest"
+$pdgoCommit = "unknown"
+$pdgoDate = (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss UTC")
+
+if ($isLocalBuild) {
+    try {
+        $pdgoVersion = git describe --tags --always --dirty
+        $pdgoCommit = git rev-parse --short HEAD
+    } catch {
+        Write-Host "Warning: Failed to get local version info from git. Using defaults." -ForegroundColor Yellow
+    }
+} else {
+    try {
+        $githubApi = "https://api.github.com/repos/playdate-go/pdgo"
+        $headers = @{"User-Agent" = "pdgo-installer"}
+        
+        $releaseData = Invoke-RestMethod -Uri "$githubApi/releases/latest" -Headers $headers -ErrorAction SilentlyContinue
+        if ($releaseData -and $releaseData.tag_name) {
+            $pdgoVersion = $releaseData.tag_name
+        }
+        
+        $commitData = Invoke-RestMethod -Uri "$githubApi/commits/main" -Headers $headers -ErrorAction SilentlyContinue
+        if ($commitData -and $commitData.sha) {
+            $pdgoCommit = $commitData.sha.Substring(0, 7)
+        }
+    } catch {
+        Write-Host "Warning: Failed to fetch version info from GitHub API. Using defaults." -ForegroundColor Yellow
+    }
+}
+
 Write-Host "╔══════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
 Write-Host "║              PdGo - Full Installer (Windows)             ║" -ForegroundColor Cyan
 Write-Host "╚══════════════════════════════════════════════════════════╝" -ForegroundColor Cyan
@@ -138,19 +169,71 @@ Write-Host "All dependencies OK" -ForegroundColor Green
 # ============================================================================
 Write-Host "`n[2/4] Installing pdgoc..." -ForegroundColor Yellow
 
-if ($isLocalBuild) {
-    Write-Host "Installing pdgo from local directory"
-    Set-Location $localRoot\cmd\pdgoc
-    $localVersion = git describe --tags --always --dirty
-    $localCommit = git rev-parse --short HEAD
-    $localDate = (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss UTC")
-    go install -ldflags="-X 'main.Version=$localVersion' -X 'main.Commit=$localCommit' -X 'main.Date=$localDate'"
-} else {
-    go install github.com/playdate-go/pdgo/cmd/pdgoc@latest
-}
-
 $goPath = go env GOPATH
 $goBin = if ($env:GOBIN) { $env:GOBIN } else { Join-Path $goPath "bin" }
+if (-not (Test-Path $goBin)) {
+    New-Item -ItemType Directory -Path $goBin | Out-Null
+}
+
+if ($isLocalBuild) {
+    Write-Host "Installing pdgoc from local directory"
+    $originalLocation = (Get-Location).Path
+    Set-Location $localRoot\cmd\pdgoc
+    
+    Write-Host "  Downloading Go dependencies..."
+    go mod tidy
+    
+    # Build with ldflags to inject version information
+    go build -ldflags="-X 'main.Version=$pdgoVersion' -X 'main.Commit=$pdgoCommit' -X 'main.Date=$pdgoDate'" -o (Join-Path $goBin "pdgoc.exe") .
+    
+    Set-Location $originalLocation
+} else {
+    Write-Host "  Installing pdgoc from GitHub..."
+    $tempDir = Join-Path $env:TEMP "pdgo-build-$(Get-Random)"
+    New-Item -ItemType Directory -Path $tempDir | Out-Null
+    
+    try {
+        $zipUrl = ""
+        if ($pdgoVersion -ne "latest") {
+            Write-Host "  Downloading release $pdgoVersion..."
+            $zipUrl = "https://github.com/playdate-go/pdgo/archive/refs/tags/$pdgoVersion.zip"
+        } else {
+            Write-Host "  Downloading latest source from main..."
+            $zipUrl = "https://github.com/playdate-go/pdgo/archive/refs/heads/main.zip"
+        }
+        
+        $tempZip = Join-Path $tempDir "source.zip"
+        Invoke-WebRequest -Uri $zipUrl -OutFile $tempZip
+        
+        Write-Host "  Extracting source..."
+        Expand-Archive -Path $tempZip -DestinationPath $tempDir -Force
+        
+        $extractedDir = Get-ChildItem -Path $tempDir -Directory | Select-Object -First 1 | ForEach-Object { $_.FullName }
+        $pdgocSourceDir = Join-Path $extractedDir "cmd\pdgoc"
+        
+        $originalLocation = (Get-Location).Path
+        Set-Location $pdgocSourceDir
+        
+        Write-Host "  Downloading Go dependencies..."
+        go mod tidy
+        
+        Write-Host "  Building pdgoc..."
+        Write-Host "    Version: $pdgoVersion"
+        Write-Host "    Commit:  $pdgoCommit"
+        Write-Host "    Date:    $pdgoDate"
+        
+        # Build with ldflags to inject version information
+        go build -ldflags="-X 'main.Version=$pdgoVersion' -X 'main.Commit=$pdgoCommit' -X 'main.Date=$pdgoDate'" -o (Join-Path $goBin "pdgoc.exe") .
+        
+        Set-Location $originalLocation
+        Write-Host "  pdgoc successfully built and installed!" -ForegroundColor Green
+    }
+    finally {
+        if (Test-Path $tempDir) {
+            Remove-Item -Recurse -Force $tempDir
+        }
+    }
+}
 
 if (Test-Path (Join-Path $goBin "pdgoc.exe")) {
     Write-Host "  pdgoc installed at: " -NoNewline; Write-Host "$goBin\pdgoc.exe" -ForegroundColor Green
@@ -189,9 +272,6 @@ if ($skipTinyGo) {
 
     Write-Host "  Injecting Playdate support files..."
 
-    $pdgoReleaseData = Invoke-RestMethod -Uri "https://api.github.com/repos/playdate-go/pdgo/releases/latest"
-    $pdgoReleaseTag = $pdgoReleaseData.tag_name
-
     $targetsDir = Join-Path $tinygoDir "targets"
     $runtimeDir = Join-Path (Join-Path $tinygoDir "src") "runtime"
 
@@ -207,14 +287,19 @@ if ($skipTinyGo) {
         # src/runtime/gc_playdate.go
         Copy-Item -Path ".\cmd\pdgoc\tinygo-patches\gc_playdate.go" -Destination (Join-Path $runtimeDir "gc_playdate.go")
     } else {
+        # Determine the branch/tag/ref to use for downloading patches
+        $pdgoBranch = if ($pdgoVersion -ne "latest") { "refs/tags/$pdgoVersion" } else { "main" }
+        $patchesBaseUrl = "https://raw.githubusercontent.com/playdate-go/pdgo/$pdgoBranch/cmd/pdgoc/tinygo-patches"
+
+        Write-Host "  Downloading patches from $patchesBaseUrl..."
         # targets/playdate.json
-        Invoke-WebRequest -Uri "https://raw.githubusercontent.com/playdate-go/pdgo/refs/tags/$pdgoReleaseTag/cmd/pdgoc/tinygo-patches/playdate.json" -OutFile (Join-Path $targetsDir "playdate.json")
+        Invoke-WebRequest -Uri "$patchesBaseUrl/playdate.json" -OutFile (Join-Path $targetsDir "playdate.json")
         # targets/playdate.ld
-        Invoke-WebRequest -Uri "https://raw.githubusercontent.com/playdate-go/pdgo/refs/tags/$pdgoReleaseTag/cmd/pdgoc/tinygo-patches/playdate.ld" -OutFile (Join-Path $targetsDir "playdate.ld")
+        Invoke-WebRequest -Uri "$patchesBaseUrl/playdate.ld" -OutFile (Join-Path $targetsDir "playdate.ld")
         # src/runtime/runtime_playdate.go
-        Invoke-WebRequest -Uri "https://raw.githubusercontent.com/playdate-go/pdgo/refs/tags/$pdgoReleaseTag/cmd/pdgoc/tinygo-patches/runtime_playdate.go" -OutFile (Join-Path $runtimeDir "runtime_playdate.go")
+        Invoke-WebRequest -Uri "$patchesBaseUrl/runtime_playdate.go" -OutFile (Join-Path $runtimeDir "runtime_playdate.go")
         # src/runtime/gc_playdate.go
-        Invoke-WebRequest -Uri "https://raw.githubusercontent.com/playdate-go/pdgo/refs/tags/$pdgoReleaseTag/cmd/pdgoc/tinygo-patches/gc_playdate.go" -OutFile (Join-Path $runtimeDir "gc_playdate.go")
+        Invoke-WebRequest -Uri "$patchesBaseUrl/gc_playdate.go" -OutFile (Join-Path $runtimeDir "gc_playdate.go")
     }
 
     Write-Host "  Installing Go 1.25.8 as required by TinyGo:"
