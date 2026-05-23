@@ -10,8 +10,7 @@
 #   curl -fsSL https://raw.githubusercontent.com/playdate-go/pdgo/main/install.sh | bash
 #
 # Options (via environment variables):
-#   SKIP_TINYGO=1  - Skip TinyGo build (simulator-only)
-#   JOBS=N         - Number of parallel jobs for LLVM build
+#   SKIP_TINYGO=1  - Skip TinyGo install (simulator-only)
 #
 
 set -e
@@ -24,8 +23,6 @@ NC='\033[0m'
 
 TINYGO_DIR="$HOME/tinygo-playdate"
 TINYGO_VERSION="0.40.1"
-LLVM_VERSION="20"
-JOBS=${JOBS:-$(sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo 4)}
 
 echo -e "${CYAN}╔══════════════════════════════════════════════════════════╗${NC}"
 echo -e "${CYAN}║              PdGo (Golang for Playdate) - Full Installer ║${NC}"
@@ -34,9 +31,19 @@ echo ""
 
 # Check OS
 if [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "win32" ]]; then
-    echo -e "${RED}ERROR: Windows is not supported${NC}"
-    echo "Supported: macOS, Linux"
+    echo -e "${RED}ERROR: Windows is not supported. Use install.ps1 instead.${NC}"
     exit 1
+fi
+
+# Detect OS/arch for TinyGo download
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    if [[ "$(uname -m)" == "arm64" ]]; then
+        TINYGO_OS="darwin-arm64"
+    else
+        TINYGO_OS="darwin-amd64"
+    fi
+else
+    TINYGO_OS="linux-amd64"
 fi
 
 # ============================================================================
@@ -47,8 +54,6 @@ echo -e "${YELLOW}[1/4] Checking dependencies...${NC}"
 missing=""
 command -v go &>/dev/null || missing="$missing go"
 command -v git &>/dev/null || missing="$missing git"
-command -v cmake &>/dev/null || missing="$missing cmake"
-command -v ninja &>/dev/null || missing="$missing ninja"
 
 if [ -n "$missing" ]; then
     echo -e "${RED}Missing dependencies:$missing${NC}"
@@ -85,8 +90,6 @@ fi
 
 SDK_VERSION=$(cat "$PLAYDATE_SDK_PATH/VERSION.txt" 2>/dev/null | tr -d '\n' || echo "unknown")
 echo -e "  Playdate SDK: ${GREEN}$SDK_VERSION${NC}"
-echo -e "  cmake: ${GREEN}$(cmake --version | head -1 | awk '{print $3}')${NC}"
-echo -e "  ninja: ${GREEN}$(ninja --version)${NC}"
 
 echo -e "${GREEN}All dependencies OK${NC}"
 
@@ -185,142 +188,59 @@ if ! command -v pdgoc &>/dev/null; then
 fi
 
 # ============================================================================
-# Step 3: Build TinyGo with Playdate support
+# Step 3: Install TinyGo with Playdate support (Pre-compiled)
 # ============================================================================
 if [ "$SKIP_TINYGO" = "1" ]; then
     echo ""
-    echo -e "${YELLOW}[3/4] Skipping TinyGo build (SKIP_TINYGO=1)${NC}"
-    echo "  You can build it later with:"
-    echo "  git clone https://github.com/playdate-go/pdgo.git && cd pdgo"
-    echo "  ./cmd/pdgoc/scripts/build-tinygo-playdate.sh"
+    echo -e "${YELLOW}[3/4] Skipping TinyGo install (SKIP_TINYGO=1)${NC}"
 else
     echo ""
-    echo -e "${YELLOW}[3/4] Building TinyGo with Playdate support...${NC}"
-    echo -e "  TinyGo version: ${GREEN}v$TINYGO_VERSION${NC}"
-    echo -e "  Install path: ${GREEN}$TINYGO_DIR${NC}"
-    echo -e "  Parallel jobs: ${GREEN}$JOBS${NC}"
-    
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-        echo -e "  LLVM: ${GREEN}Building from source (~25 minutes)${NC}"
-    else
-        echo -e "  LLVM: ${GREEN}Will use system LLVM if available${NC}"
-    fi
+    echo -e "${YELLOW}[3/4] Installing TinyGo with Playdate support...${NC}"
+    echo -e "  TinyGo version: ${GREEN}v$TINYGO_VERSION ($TINYGO_OS)${NC}"
+    echo -e "  Install path:   ${GREEN}$TINYGO_DIR${NC}"
     echo ""
 
-    # Clone or update TinyGo
-    if [ -d "$TINYGO_DIR/.git" ]; then
-        echo "  Updating TinyGo repository..."
-        cd "$TINYGO_DIR"
-        git fetch --all --tags
-    else
-        echo "  Cloning TinyGo repository..."
-        git clone --recursive https://github.com/tinygo-org/tinygo.git "$TINYGO_DIR"
-        cd "$TINYGO_DIR"
+    TEMP_TGZ=$(mktemp /tmp/tinygo.XXXXXX.tar.gz)
+    TINYGO_URL="https://github.com/tinygo-org/tinygo/releases/download/v${TINYGO_VERSION}/tinygo${TINYGO_VERSION}.${TINYGO_OS}.tar.gz"
+
+    echo "  Downloading official ${TINYGO_OS} release..."
+    curl -fSL -o "$TEMP_TGZ" "$TINYGO_URL"
+
+    if [ -d "$TINYGO_DIR" ]; then
+        echo "  Removing old installation..."
+        rm -rf "$TINYGO_DIR"
     fi
 
-    # Checkout specific version
-    echo "  Checking out v$TINYGO_VERSION..."
-    git checkout "v$TINYGO_VERSION"
-    git submodule update --init --recursive
+    echo "  Extracting to target directory..."
+    tar -xzf "$TEMP_TGZ" -C "$HOME"
+    mv "$HOME/tinygo" "$TINYGO_DIR"
+    rm -f "$TEMP_TGZ"
 
-    # Clean previous build to ensure Playdate files are included
-    if [ -d "$TINYGO_DIR/build" ]; then
-        echo "  Cleaning previous build..."
-        make clean 2>/dev/null || rm -rf "$TINYGO_DIR/build"
-    fi
+    echo "  Injecting Playdate support files..."
 
-    # Add Playdate support files BEFORE building (required for gc.playdate)
-    echo "  Adding Playdate support files..."
-
-    # Define patch files by destination directory
-    # Format: "source_file:destination_file"
-    PATCHES_TARGETS=(
-        "playdate.json:targets/playdate.json"
-        "playdate.ld:targets/playdate.ld"
-    )
-
-    PATCHES_RUNTIME=(
-        "runtime_playdate.go:src/runtime/runtime_playdate.go"
-        "gc_playdate.go:src/runtime/gc_playdate.go"
-    )
+    TARGETS_DIR="$TINYGO_DIR/targets"
+    RUNTIME_DIR="$TINYGO_DIR/src/runtime"
 
     if [ "$USE_LOCAL_PATCHES" = true ]; then
-        # Use local patch files from the repository
-        echo "  Using local Playdate patches from repository..."
-
+        echo "  Patching TinyGo with local files"
         LOCAL_PATCHES_DIR="${LOCAL_REPO_ROOT}/cmd/pdgoc/tinygo-patches"
 
-        # Copy all patch files
-        for patch in "${PATCHES_TARGETS[@]}" "${PATCHES_RUNTIME[@]}"; do
-            IFS=':' read -r src dst <<< "$patch"
-            if ! cp "${LOCAL_PATCHES_DIR}/${src}" "$TINYGO_DIR/${dst}"; then
-                echo -e "${RED}Failed to copy ${src}${NC}"
-                exit 1
-            fi
-        done
-
-        echo -e "  ${GREEN}Playdate patches applied from local files${NC}"
+        cp "${LOCAL_PATCHES_DIR}/playdate.json"   "$TARGETS_DIR/playdate.json"
+        cp "${LOCAL_PATCHES_DIR}/playdate.ld"     "$TARGETS_DIR/playdate.ld"
+        cp "${LOCAL_PATCHES_DIR}/runtime_playdate.go" "$RUNTIME_DIR/runtime_playdate.go"
+        cp "${LOCAL_PATCHES_DIR}/gc_playdate.go"      "$RUNTIME_DIR/gc_playdate.go"
     else
-        # Download patch files from GitHub
-        echo "  Downloading Playdate patches from GitHub..."
+        # Determine the tag/branch to use for downloading patches
+        PDGO_REF=${LATEST_TAG:-"main"}
+        PATCHES_BASE_URL="https://raw.githubusercontent.com/playdate-go/pdgo/${PDGO_REF}/cmd/pdgoc/tinygo-patches"
 
-        # Determine the branch/tag to use for downloading patches
-        PDGO_BRANCH=${PDGO_BRANCH:-"main"}
-        PATCHES_BASE_URL="https://raw.githubusercontent.com/playdate-go/pdgo/${PDGO_BRANCH}/cmd/pdgoc/tinygo-patches"
-
-        # Download all patch files
-        for patch in "${PATCHES_TARGETS[@]}" "${PATCHES_RUNTIME[@]}"; do
-            IFS=':' read -r src dst <<< "$patch"
-            if ! curl -sL "${PATCHES_BASE_URL}/${src}" -o "$TINYGO_DIR/${dst}"; then
-                echo -e "${RED}Failed to download ${src}${NC}"
-                exit 1
-            fi
-        done
-
-        echo -e "  ${GREEN}Playdate patches applied successfully${NC}"
+        curl -sL "${PATCHES_BASE_URL}/playdate.json"        -o "$TARGETS_DIR/playdate.json"
+        curl -sL "${PATCHES_BASE_URL}/playdate.ld"          -o "$TARGETS_DIR/playdate.ld"
+        curl -sL "${PATCHES_BASE_URL}/runtime_playdate.go"  -o "$RUNTIME_DIR/runtime_playdate.go"
+        curl -sL "${PATCHES_BASE_URL}/gc_playdate.go"       -o "$RUNTIME_DIR/gc_playdate.go"
     fi
 
-    # Check for system LLVM (Linux only)
-    USE_SYSTEM_LLVM=false
-    SYSTEM_LLVM_PATH=""
-
-    if [[ "$OSTYPE" != "darwin"* ]]; then
-        # Try to find system LLVM on Linux
-        for ver in 20 19 18 17; do
-            if [ -f "/usr/lib/llvm-$ver/bin/llvm-config" ]; then
-                SYSTEM_LLVM_PATH="/usr/lib/llvm-$ver"
-                USE_SYSTEM_LLVM=true
-                break
-            fi
-        done
-    fi
-
-    # Build TinyGo
-    if [ "$USE_SYSTEM_LLVM" = true ]; then
-        echo -e "  Found system LLVM at: ${GREEN}$SYSTEM_LLVM_PATH${NC}"
-        echo "  Building TinyGo (~1 minute)..."
-        make LLVM_BUILDDIR="$SYSTEM_LLVM_PATH"
-    else
-        echo "  Downloading LLVM sources..."
-        make llvm-source
-
-        echo "  Building LLVM (~20-25 minutes)..."
-        echo "  Started at: $(date)"
-        
-        # Use clang if available
-        if command -v clang &>/dev/null; then
-            export CC=clang
-            export CXX=clang++
-        fi
-
-        LLVM_PARALLEL=$JOBS make llvm-build
-        echo "  LLVM completed at: $(date)"
-
-        echo "  Building TinyGo..."
-        make
-    fi
-
-    echo -e "  ${GREEN}TinyGo built successfully!${NC}"
+    echo -e "  ${GREEN}TinyGo with Playdate support ready!${NC}"
 fi
 
 # ============================================================================
@@ -343,7 +263,7 @@ if ! echo "$PATH" | grep -q "$GOBIN"; then
     NEED_GOBIN=true
 fi
 
-if [ "$SKIP_TINYGO" != "1" ] && ! echo "$PATH" | grep -q "$TINYGO_DIR/build"; then
+if [ "$SKIP_TINYGO" != "1" ] && ! echo "$PATH" | grep -q "$TINYGO_DIR/bin"; then
     NEED_TINYGO=true
 fi
 
@@ -355,10 +275,10 @@ if [ "$NEED_GOBIN" = true ] || [ "$NEED_TINYGO" = true ]; then
         echo "  export PATH=\"\$PATH:$GOBIN\""
     fi
     if [ "$NEED_TINYGO" = true ]; then
-        echo "  export PATH=\"\$PATH:$TINYGO_DIR/build\""
+        echo "  export PATH=\"\$PATH:$TINYGO_DIR/bin\""
     fi
     echo ""
-    
+
     read -p "Add automatically? [Y/n] " -n 1 -r
     echo
     if [[ ! $REPLY =~ ^[Nn]$ ]]; then
@@ -368,7 +288,7 @@ if [ "$NEED_GOBIN" = true ] || [ "$NEED_TINYGO" = true ]; then
             echo "export PATH=\"\$PATH:$GOBIN\"" >> "$SHELL_RC"
         fi
         if [ "$NEED_TINYGO" = true ]; then
-            echo "export PATH=\"\$PATH:$TINYGO_DIR/build\"" >> "$SHELL_RC"
+            echo "export PATH=\"\$PATH:$TINYGO_DIR/bin\"" >> "$SHELL_RC"
         fi
         echo -e "${GREEN}Added to $SHELL_RC${NC}"
         echo "Run: source $SHELL_RC"
@@ -388,7 +308,7 @@ echo ""
 echo "Installed:"
 echo -e "  pdgoc:  ${GREEN}$GOBIN/pdgoc${NC}"
 if [ "$SKIP_TINYGO" != "1" ]; then
-echo -e "  TinyGo: ${GREEN}$TINYGO_DIR/build/tinygo${NC}"
+echo -e "  TinyGo: ${GREEN}$TINYGO_DIR/bin/tinygo${NC}"
 fi
 echo ""
 echo "Usage:"
