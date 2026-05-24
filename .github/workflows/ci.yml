@@ -11,9 +11,12 @@ on:
 
 jobs:
   build:
-    runs-on: macos-13
+    runs-on: macos-14
 
     steps:
+      - name: Install Rosetta
+        run: softwareupdate --install-rosetta --agree-to-license
+
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -23,7 +26,11 @@ jobs:
           go-version: "1.25"
 
       - name: Install Playdate SDK
-        uses: idleberg/setup-playdate-sdk@v3.0.0
+        run: |
+          SDK_DIR="$RUNNER_TEMP/PlaydateSDK"
+          curl -sL "https://download.panic.com/playdate_sdk/macOS/PlaydateSDK-latest.tar.gz" | tar xz -C "$RUNNER_TEMP"
+          mv "$RUNNER_TEMP/PlaydateSDK-"* "$SDK_DIR"
+          echo "PLAYDATE_SDK_PATH=$SDK_DIR" >> "$GITHUB_ENV"
 
       - name: Run install.sh
         run: |
