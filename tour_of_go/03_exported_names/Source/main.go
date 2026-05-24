@@ -31,3 +31,7 @@ func initGame() {
 func update() int {
 	return 1
 }
+
+func main() {
+	
+}
