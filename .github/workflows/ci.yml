@@ -61,7 +61,7 @@ jobs:
             -name HelloWorld \
             -author ci \
             -desc test \
-            -bundle-id test.hw \
+            -bundle-id com.test.hw \
             -version 1.0 \
             -build-number 1
           "$PLAYDATE_SDK_PATH/bin/Playdate Simulator.app/Contents/MacOS/Playdate Simulator" \
