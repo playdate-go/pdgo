@@ -56,7 +56,7 @@ jobs:
 
       - name: Simulator test — hello_world
         run: |
-          cd game_examples/hello_world/Source
+          cd game_examples/hello_world
           pdgoc -sim -run \
             -name HelloWorld \
             -author ci \
@@ -65,7 +65,7 @@ jobs:
             -version 1.0 \
             -build-number 1
           "$PLAYDATE_SDK_PATH/bin/Playdate Simulator.app/Contents/MacOS/Playdate Simulator" \
-            "$PWD/../HelloWorld_sim.pdx" &
+            "$PWD/HelloWorld_sim.pdx" &
           SIM_PID=$!
           sleep 5
           if kill -0 $SIM_PID 2>/dev/null; then
@@ -78,7 +78,7 @@ jobs:
 
       - name: Simulator test — generics_all
         run: |
-          cd tour_of_go/generics_all/Source
+          cd tour_of_go/generics_all
           pdgoc -sim -run \
             -name TourOfGoGenericsAll \
             -author ci \
@@ -87,7 +87,7 @@ jobs:
             -version 1.0 \
             -build-number 1
           "$PLAYDATE_SDK_PATH/bin/Playdate Simulator.app/Contents/MacOS/Playdate Simulator" \
-            "$PWD/../TourOfGoGenericsAll_sim.pdx" &
+            "$PWD/TourOfGoGenericsAll_sim.pdx" &
           SIM_PID=$!
           sleep 5
           if kill -0 $SIM_PID 2>/dev/null; then
