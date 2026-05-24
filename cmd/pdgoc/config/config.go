@@ -21,7 +21,7 @@ type Meta struct {
 
 func (meta *Meta) String() string {
 	b, _ := json.Marshal(meta)
-	return fmt.Sprintf(string(b))
+	return string(b)
 }
 
 func (meta *Meta) Validate() error {
@@ -61,7 +61,7 @@ type System struct {
 
 func (system *System) String() string {
 	b, _ := json.Marshal(system)
-	return fmt.Sprintf(string(b))
+	return string(b)
 }
 
 func (system *System) Validate() error {
@@ -82,7 +82,7 @@ type Config struct {
 
 func (cfg *Config) String() string {
 	b, _ := json.Marshal(cfg)
-	return fmt.Sprintf(string(b))
+	return string(b)
 }
 
 func Load() (*Config, error) {
