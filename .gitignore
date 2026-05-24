@@ -16,3 +16,6 @@ pdex.h
 .DS_Store
 
 cmd/pdgoc/pdgoc
+
+main_cgo.go
+pdxinfo
