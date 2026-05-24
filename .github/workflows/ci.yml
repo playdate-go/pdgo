@@ -27,9 +27,9 @@ jobs:
 
       - name: Install Playdate SDK
         run: |
-          SDK_DIR="$RUNNER_TEMP/PlaydateSDK"
-          curl -sL "https://download.panic.com/playdate_sdk/macOS/PlaydateSDK-latest.tar.gz" | tar xz -C "$RUNNER_TEMP"
-          mv "$RUNNER_TEMP/PlaydateSDK-"* "$SDK_DIR"
+          curl -sL "https://download-cdn.panic.com/playdate_sdk/PlaydateSDK-latest.zip" -o "$RUNNER_TEMP/PlaydateSDK.zip"
+          unzip -q "$RUNNER_TEMP/PlaydateSDK.zip" -d "$RUNNER_TEMP"
+          SDK_DIR=$(ls -d "$RUNNER_TEMP/PlaydateSDK-"* | head -1)
           echo "PLAYDATE_SDK_PATH=$SDK_DIR" >> "$GITHUB_ENV"
 
       - name: Run install.sh
