@@ -14,9 +14,6 @@ jobs:
     runs-on: macos-14
 
     steps:
-      - name: Install Rosetta
-        run: softwareupdate --install-rosetta --agree-to-license
-
       - name: Checkout
         uses: actions/checkout@v4
 
