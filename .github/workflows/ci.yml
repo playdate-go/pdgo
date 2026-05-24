@@ -1,0 +1,103 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+    branches: [main]
+  release:
+    types: [published]
+
+jobs:
+  build:
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+
+      - name: Install Playdate SDK
+        uses: idleberg/setup-playdate-sdk@v3.0.0
+
+      - name: Run install.sh
+        run: |
+          CI=1 bash install.sh
+
+      - name: Add paths
+        run: |
+          GOBIN="$(go env GOPATH)/bin"
+          echo "$GOBIN" >> "$GITHUB_PATH"
+          echo "$HOME/tinygo-playdate/bin" >> "$GITHUB_PATH"
+
+      - name: Unit tests
+        run: |
+          cd cmd/pdgoc
+          go test ./config/... ./pdxinfo/... -v
+
+      - name: Build game examples
+        run: |
+          cd game_examples
+          bash build_all.sh
+
+      - name: Build tour_of_go examples
+        run: |
+          cd tour_of_go
+          bash build_all.sh
+
+      - name: Simulator test — hello_world
+        run: |
+          cd game_examples/hello_world/Source
+          pdgoc -sim -run \
+            -name HelloWorld \
+            -author ci \
+            -desc test \
+            -bundle-id test.hw \
+            -version 1.0 \
+            -build-number 1
+          "$PLAYDATE_SDK_PATH/bin/Playdate Simulator.app/Contents/MacOS/Playdate Simulator" \
+            "$PWD/../HelloWorld_sim.pdx" &
+          SIM_PID=$!
+          sleep 5
+          if kill -0 $SIM_PID 2>/dev/null; then
+            echo "Simulator launched OK"
+            kill $SIM_PID 2>/dev/null || true
+          else
+            echo "Simulator failed to launch"
+            exit 1
+          fi
+
+      - name: Simulator test — generics_all
+        run: |
+          cd tour_of_go/generics_all/Source
+          pdgoc -sim -run \
+            -name TourOfGoGenericsAll \
+            -author ci \
+            -desc test \
+            -bundle-id test.tog-generics \
+            -version 1.0 \
+            -build-number 1
+          "$PLAYDATE_SDK_PATH/bin/Playdate Simulator.app/Contents/MacOS/Playdate Simulator" \
+            "$PWD/../TourOfGoGenericsAll_sim.pdx" &
+          SIM_PID=$!
+          sleep 5
+          if kill -0 $SIM_PID 2>/dev/null; then
+            echo "Simulator launched OK"
+            kill $SIM_PID 2>/dev/null || true
+          else
+            echo "Simulator failed to launch"
+            exit 1
+          fi
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: pdx-bundles
+          path: |
+            game_examples/**/*.pdx
+            tour_of_go/**/*.pdx

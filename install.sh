@@ -279,19 +279,23 @@ if [ "$NEED_GOBIN" = true ] || [ "$NEED_TINYGO" = true ]; then
     fi
     echo ""
 
-    read -p "Add automatically? [Y/n] " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Nn]$ ]]; then
-        echo "" >> "$SHELL_RC"
-        echo "# pdgo - Playdate Go toolkit" >> "$SHELL_RC"
-        if [ "$NEED_GOBIN" = true ]; then
-            echo "export PATH=\"\$PATH:$GOBIN\"" >> "$SHELL_RC"
+    if [ "$CI" = "1" ]; then
+        echo -e "${YELLOW}CI detected — skipping interactive PATH setup${NC}"
+    else
+        read -p "Add automatically? [Y/n] " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+            echo "" >> "$SHELL_RC"
+            echo "# pdgo - Playdate Go toolkit" >> "$SHELL_RC"
+            if [ "$NEED_GOBIN" = true ]; then
+                echo "export PATH=\"\$PATH:$GOBIN\"" >> "$SHELL_RC"
+            fi
+            if [ "$NEED_TINYGO" = true ]; then
+                echo "export PATH=\"\$PATH:$TINYGO_DIR/bin\"" >> "$SHELL_RC"
+            fi
+            echo -e "${GREEN}Added to $SHELL_RC${NC}"
+            echo "Run: source $SHELL_RC"
         fi
-        if [ "$NEED_TINYGO" = true ]; then
-            echo "export PATH=\"\$PATH:$TINYGO_DIR/bin\"" >> "$SHELL_RC"
-        fi
-        echo -e "${GREEN}Added to $SHELL_RC${NC}"
-        echo "Run: source $SHELL_RC"
     fi
 else
     echo -e "${GREEN}PATH already configured${NC}"
