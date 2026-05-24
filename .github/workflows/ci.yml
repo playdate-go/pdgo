@@ -57,7 +57,7 @@ jobs:
       - name: Simulator test — hello_world
         run: |
           cd game_examples/hello_world
-          pdgoc -sim -run \
+          pdgoc -sim \
             -name HelloWorld \
             -author ci \
             -desc test \
@@ -79,11 +79,11 @@ jobs:
       - name: Simulator test — generics_all
         run: |
           cd tour_of_go/generics_all
-          pdgoc -sim -run \
+          pdgoc -sim \
             -name TourOfGoGenericsAll \
             -author ci \
             -desc test \
-            -bundle-id test.tog-generics \
+            -bundle-id com.test.tog-generics \
             -version 1.0 \
             -build-number 1
           "$PLAYDATE_SDK_PATH/bin/Playdate Simulator.app/Contents/MacOS/Playdate Simulator" \
