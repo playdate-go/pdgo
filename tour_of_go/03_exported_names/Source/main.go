@@ -12,8 +12,10 @@
 package main
 
 import (
+	"fmt"
+	"math"
+
 	"github.com/playdate-go/pdgo"
-    "math"	
 )
 
 
@@ -22,7 +24,7 @@ var pd  *pdgo.PlaydateAPI
 
 // initGame is called once when the game starts
 func initGame() {
-	pd.Graphics.DrawText(math.Pi, 50,50)
+	pd.Graphics.DrawText(fmt.Sprintf("%v", math.Pi), 50,50)
 }
 
 // update is called every frame
