@@ -44,6 +44,9 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     fi
 else
     TINYGO_OS="linux-amd64"
+    if [[ "$(uname -m)" == "aarch64" ]]; then
+        TINYGO_OS="linux-arm64"
+    fi
 fi
 
 # ============================================================================
