@@ -138,73 +138,9 @@ jobs:
       contents: read
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Install ARM toolchain
+        uses: carlosperate/arm-none-eabi-gcc-action@v1
 
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: "1.25"
-
-      - name: Install Playdate SDK
-        run: |
-          curl -sL "https://download.panic.com/playdate_sdk/Linux/PlaydateSDK-latest.tar.gz" | tar xz -C "$RUNNER_TEMP"
-          SDK_DIR=$(ls -d "$RUNNER_TEMP/PlaydateSDK-"* | head -1)
-          echo "PLAYDATE_SDK_PATH=$SDK_DIR" >> "$GITHUB_ENV"
-
-      - name: Run install.sh
-        run: CI=1 bash install.sh
-
-      - name: Add paths
-        run: |
-          GOBIN="$(go env GOPATH)/bin"
-          echo "$GOBIN" >> "$GITHUB_PATH"
-          echo "$HOME/tinygo-playdate/bin" >> "$GITHUB_PATH"
-
-      - name: Unit tests
-        run: |
-          cd cmd/pdgoc
-          go test ./config/... ./pdxinfo/... -v
-
-      - name: Build game examples
-        run: |
-          cd game_examples
-          bash build_all.sh
-
-      - name: Build tour_of_go examples
-        run: |
-          cd tour_of_go
-          bash build_all.sh
-
-      - name: Simulator test — hello_world
-        run: |
-          sudo apt-get install -y xvfb
-          cd game_examples/hello_world
-          pdgoc -sim \
-            -name HelloWorld \
-            -author ci \
-            -desc test \
-            -bundle-id com.test.hw \
-            -version 1.0 \
-            -build-number 1
-          xvfb-run "$PLAYDATE_SDK_PATH/bin/PlaydateSimulator" \
-            "$PWD/HelloWorld_sim.pdx" &
-          SIM_PID=$!
-          sleep 5
-          if kill -0 $SIM_PID 2>/dev/null; then
-            echo "Simulator launched OK"
-            kill $SIM_PID 2>/dev/null || true
-          else
-            echo "Simulator failed to launch"
-            exit 1
-          fi
-
-  linux-arm64:
-    runs-on: ubuntu-24.04-arm
-    permissions:
-      contents: read
-
-    steps:
       - name: Checkout
         uses: actions/checkout@v4
 
