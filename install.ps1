@@ -155,9 +155,14 @@ if ($missing.Count -gt 0) {
     $installNow = $autoInstallDeps
     if (-not $installNow) {
         Write-Host 'We can automatically install these for you using Scoop (https://scoop.sh).'
-        $response = Read-Host 'Would you like to install missing dependencies via Scoop now? [Y/n]'
-        if ($response -notmatch '^[Nn]') {
+        if ($env:CI -eq '1') {
+            Write-Host 'CI detected - skipping interactive prompt, installing dependencies automatically' -ForegroundColor Yellow
             $installNow = $true
+        } else {
+            $response = Read-Host 'Would you like to install missing dependencies via Scoop now? [Y/n]'
+            if ($response -notmatch '^[Nn]') {
+                $installNow = $true
+            }
         }
     }
 
@@ -452,16 +457,20 @@ if ($needsUpdate) {
     }
     Write-Host ''
 
-    $response = Read-Host 'Add them automatically to your User Environment? [Y/n]'
-    if ($response -notmatch '^[Nn]') {
-        $updatedPath = $userPath
-        if (-not $updatedPath.EndsWith(';')) { $updatedPath += ';' }
-        $updatedPath += ($newPaths -join ';')
+    if ($env:CI -eq '1') {
+        Write-Host 'CI detected - skipping interactive PATH setup' -ForegroundColor Yellow
+    } else {
+        $response = Read-Host 'Add them automatically to your User Environment? [Y/n]'
+        if ($response -notmatch '^[Nn]') {
+            $updatedPath = $userPath
+            if (-not $updatedPath.EndsWith(';')) { $updatedPath += ';' }
+            $updatedPath += ($newPaths -join ';')
 
-        [Environment]::SetEnvironmentVariable('PATH', $updatedPath, 'User')
-        $env:PATH = $updatedPath
+            [Environment]::SetEnvironmentVariable('PATH', $updatedPath, 'User')
+            $env:PATH = $updatedPath
 
-        Write-Host 'Added to User PATH. (You may need to restart your terminal for all changes to take effect)' -ForegroundColor Green
+            Write-Host 'Added to User PATH. (You may need to restart your terminal for all changes to take effect)' -ForegroundColor Green
+        }
     }
 } else {
     Write-Host 'PATH already configured' -ForegroundColor Green

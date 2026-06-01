@@ -192,6 +192,61 @@ jobs:
             -build-number 1
           SDL_AUDIODRIVER=dummy xvfb-run "$PLAYDATE_SDK_PATH/bin/PlaydateSimulator" \
             "$PWD/HelloWorld_sim.pdx" &
+
+  windows-amd64:
+    runs-on: windows-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Install ARM toolchain
+        uses: carlosperate/arm-none-eabi-gcc-action@v1
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+
+      - name: Install Playdate SDK
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri 'https://download-cdn.panic.com/playdate_sdk/Windows/PlaydateSDK-3.0.6.exe' -OutFile "$env:RUNNER_TEMP\PlaydateSDK.exe"
+          Start-Process -FilePath "$env:RUNNER_TEMP\PlaydateSDK.exe" -Args '/S' -Wait
+          echo "PLAYDATE_SDK_PATH=C:\Program Files (x86)\PlaydateSDK" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+
+      - name: Run install.ps1
+        shell: pwsh
+        run: |
+          $env:CI = '1'
+          pwsh -File install.ps1
+
+      - name: Add paths
+        shell: pwsh
+        run: |
+          $goBin = "$(go env GOPATH)\bin"
+          "$goBin" | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
+          "$env:USERPROFILE\tinygo-playdate\bin" | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
+
+      - name: Unit tests
+        shell: bash
+        run: |
+          cd cmd/pdgoc
+          go test ./config/... ./pdxinfo/... -v
+
+      - name: Build game examples
+        shell: pwsh
+        run: |
+          cd game_examples
+          pwsh build_all.ps1
+
+      - name: Build tour_of_go examples
+        shell: pwsh
+        run: |
+          cd tour_of_go
+          pwsh build_all.ps1
           SIM_PID=$!
           sleep 5
           if kill -0 $SIM_PID 2>/dev/null; then
