@@ -181,10 +181,7 @@ jobs:
 
       - name: Simulator test — hello_world
         run: |
-          sudo apt-get update && sudo apt-get install -y xvfb libwebkit2gtk-4.1-0 libpulse0 pipewire pipewire-pulse pulseaudio-utils
-          pipewire -d &
-          sleep 1
-          pactl load-module module-null-sink sink_name=dummy
+          sudo apt-get update && sudo apt-get install -y xvfb libwebkit2gtk-4.1-0
           cd game_examples/hello_world
           pdgoc -sim \
             -name HelloWorld \
@@ -193,7 +190,7 @@ jobs:
             -bundle-id com.test.hw \
             -version 1.0 \
             -build-number 1
-          xvfb-run "$PLAYDATE_SDK_PATH/bin/PlaydateSimulator" \
+          SDL_AUDIODRIVER=dummy xvfb-run "$PLAYDATE_SDK_PATH/bin/PlaydateSimulator" \
             "$PWD/HelloWorld_sim.pdx" &
           SIM_PID=$!
           sleep 5
