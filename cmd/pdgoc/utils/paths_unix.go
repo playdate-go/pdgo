@@ -32,7 +32,7 @@ func GetShellArgs() []string {
 }
 
 func GetTinyGoPath() string {
-	return path.Join(GetTinyGoDir(), "build/tinygo")
+	return path.Join(GetTinyGoDir(), "bin/tinygo")
 }
 
 func FindPlaydatePort() (string, error) {
