@@ -24,6 +24,8 @@
 
 ## Quick Install
 
+### For MacOS and Linux
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/playdate-go/pdgo/main/install.sh | bash
 ```
@@ -33,6 +35,41 @@ This installs **everything** you need:
 - Custom `TinyGo` with Playdate support (for device builds)
 - Configures your PATH automatically
 
+
+> [!IMPORTANT]
+> The install script will automatically compile LLVM from source (in example ~9 minutes on Apple Silicon M5 Pro (15 CPU) and ~25-30 minutes on Apple Sillicon M1 (8-CPU), only needed once).
+
+### For Windows
+
+Open a Powershell terminal and run:
+```powershell
+iwr -useb https://raw.githubusercontent.com/playdate-go/pdgo/main/install.ps1 | iex
+```
+Log out and login back to ensure paths are properly updated.
+
+The installer uses [Scoop](https://scoop.sh) to manage dependencies, and will install it automatically if not present.
+
+If you have issues with the installer, create an issue [here](https://github.com/playdate-go/pdgo/issues).
+
+### Pre-install LLVM (Linux only - speeds up build)
+
+#### Ubuntu/Debian
+```bash
+wget https://apt.llvm.org/llvm.sh
+chmod +x llvm.sh
+sudo ./llvm.sh 20
+sudo apt install clang-20 llvm-20-dev lld-20 libclang-20-dev
+```
+
+#### Fedora
+```bash
+sudo dnf install llvm20-devel clang20-devel lld20-devel
+```
+
+#### Arch Linux
+```bash
+sudo pacman -S llvm clang lld
+```
 
 ### ARM Toolchain
 

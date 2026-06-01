@@ -20,14 +20,13 @@ func GetSimulatorPath() (string, error) {
 	return path.Join(sdkPath, "bin/PlaydateSimulator"), nil
 }
 
-func GetExecutable(path string) string {
-	return path
-}
-
 func GetLibrary(path string) string {
 	return fmt.Sprintf("%s.so", path)
 }
 
-func GetLs(path string) (string, []string) {
-	return "ls", []string{path}
+func PlaydatePortPatterns() []string {
+	return []string{
+		"/dev/ttyACM*",
+		"/dev/ttyUSB*",
+	}
 }
