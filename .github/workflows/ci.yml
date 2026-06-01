@@ -181,8 +181,8 @@ jobs:
 
       - name: Simulator test — hello_world
         run: |
-          sudo apt-get update && sudo apt-get install -y xvfb libwebkit2gtk-4.1-0 libpulse0 pipewire pipewire-pulse
-          pipewire --daemon &
+          sudo apt-get update && sudo apt-get install -y xvfb libwebkit2gtk-4.1-0 libpulse0 pipewire pipewire-pulse pulseaudio-utils
+          pipewire -d &
           sleep 1
           pactl load-module module-null-sink sink_name=dummy
           cd game_examples/hello_world
