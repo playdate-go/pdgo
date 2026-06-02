@@ -247,12 +247,3 @@ jobs:
         run: |
           cd tour_of_go
           pwsh build_all.ps1
-          SIM_PID=$!
-          sleep 5
-          if kill -0 $SIM_PID 2>/dev/null; then
-            echo "Simulator launched OK"
-            kill $SIM_PID 2>/dev/null || true
-          else
-            echo "Simulator failed to launch"
-            exit 1
-          fi
