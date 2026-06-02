@@ -242,26 +242,30 @@ Write-Host 'All dependencies OK' -ForegroundColor Green
 # Pin Go to the version required by TinyGo
 $goVersion = (go version).Split(' ')[2].Replace('go', '')
 if ($goVersion -ne $requiredGoVersion) {
-    Write-Host ''
-    Write-Host "Go $goVersion detected, but TinyGo requires Go $requiredGoVersion." -ForegroundColor Yellow
-    Write-Host "Installing Go $requiredGoVersion via Scoop..." -ForegroundColor Yellow
-    if (Get-Command 'scoop' -ErrorAction SilentlyContinue) {
-        Invoke-Expression "scoop install go@$requiredGoVersion"
-        # Refresh PATH
-        $env:PATH = [System.Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [System.Environment]::GetEnvironmentVariable('Path','User')
-        $scoopShims = Join-Path $env:USERPROFILE 'scoop\shims'
-        if ($env:PATH -notmatch [regex]::Escape($scoopShims)) {
-            $env:PATH = $scoopShims + ';' + $env:PATH
-        }
-        $goVersionCheck = (go version).Split(' ')[2].Replace('go', '')
-        if ($goVersionCheck -eq $requiredGoVersion) {
-            Write-Host "  Go $requiredGoVersion installed successfully." -ForegroundColor Green
-        } else {
-            Write-Host "  WARNING: Go version is still $goVersionCheck. Build may fail." -ForegroundColor Yellow
-        }
+        if ($env:CI -eq '1') {
+        Write-Host "CI detected - skipping Go $requiredGoVersion enforcement, using Go $goVersion" -ForegroundColor Yellow
     } else {
-        Write-Host "  Scoop not found. Please install Go $requiredGoVersion manually." -ForegroundColor Red
-        exit 1
+        Write-Host ''
+        Write-Host "Go $goVersion detected, but TinyGo requires Go $requiredGoVersion." -ForegroundColor Yellow
+        Write-Host "Installing Go $requiredGoVersion via Scoop..." -ForegroundColor Yellow
+        if (Get-Command 'scoop' -ErrorAction SilentlyContinue) {
+            Invoke-Expression "scoop install go@$requiredGoVersion"
+            # Refresh PATH
+            $env:PATH = [System.Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [System.Environment]::GetEnvironmentVariable('Path','User')
+            $scoopShims = Join-Path $env:USERPROFILE 'scoop\shims'
+            if ($env:PATH -notmatch [regex]::Escape($scoopShims)) {
+                $env:PATH = $scoopShims + ';' + $env:PATH
+            }
+            $goVersionCheck = (go version).Split(' ')[2].Replace('go', '')
+            if ($goVersionCheck -eq $requiredGoVersion) {
+                Write-Host "  Go $requiredGoVersion installed successfully." -ForegroundColor Green
+            } else {
+                Write-Host "  WARNING: Go version is still $goVersionCheck. Build may fail." -ForegroundColor Yellow
+            }
+        } else {
+            Write-Host "  Scoop not found. Please install Go $requiredGoVersion manually." -ForegroundColor Red
+            exit 1
+        }
     }
 }
 
