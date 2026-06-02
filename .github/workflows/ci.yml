@@ -248,3 +248,28 @@ jobs:
         run: |
           cd tour_of_go
           pwsh build_all.ps1
+
+      - name: Simulator test — hello_world
+        shell: pwsh
+        run: |
+          cd game_examples\hello_world
+          pdgoc -sim -name HelloWorld -author ci -desc test -bundle-id com.test.hw -version 1.0 -build-number 1
+          Start-Process "$env:PLAYDATE_SDK_PATH\bin\PlaydateSimulator.exe" -ArgumentList "$PWD\HelloWorld_sim.pdx"
+          Start-Sleep -Seconds 5
+          $sim = Get-Process -Name "PlaydateSimulator" -ErrorAction SilentlyContinue
+          if ($sim) {
+            Write-Host "Simulator launched OK"
+            Stop-Process -Name "PlaydateSimulator" -Force
+          } else {
+            Write-Host "Simulator failed to launch"
+            exit 1
+          }
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: pdx-bundles-windows
+          overwrite: true
+          path: |
+            game_examples/**/*.pdx
+            tour_of_go/**/*.pdx
