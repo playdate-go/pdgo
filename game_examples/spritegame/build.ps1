@@ -6,4 +6,4 @@ if (-not (Test-Path 'Source\images')) {
     Copy-Item -Recurse (Join-Path $env:PLAYDATE_SDK_PATH 'C_API\Examples\Sprite Game\Source\images') 'Source\'
 }
 
-pdgoc -sim -device -name="SpriteGame" -author="PdGo" -desc="Sprite Game Demo" -bundle-id=com.pdgo.spritegame -version=1.0 -build-number=1
+pdgoc -sim -device -name "SpriteGame" -author "PdGo" -desc "Sprite Game Demo" -bundle-id com.pdgo.spritegame -version 1.0 -build-number 1

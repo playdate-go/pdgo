@@ -11,4 +11,4 @@ if (-not (Test-Path 'Source\piano.wav')) {
     Copy-Item (Join-Path $env:PLAYDATE_SDK_PATH 'C_API\Examples\bach.mid\Source\piano.wav') 'Source\'
 }
 
-pdgoc -sim -device -name="BachMIDI" -author="PdGo" -desc="Bach MIDI Player" -bundle-id=com.pdgo.bachmidi -version=1.0 -build-number=1
+pdgoc -sim -device -name "BachMIDI" -author "PdGo" -desc "Bach MIDI Player" -bundle-id com.pdgo.bachmidi -version 1.0 -build-number 1

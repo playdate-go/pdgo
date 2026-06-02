@@ -16,4 +16,4 @@ if (-not (Test-Path 'Source\font')) {
     Copy-Item (Join-Path $env:PLAYDATE_SDK_PATH 'C_API\Examples\Particles\Source\font\namco-1x.fnt') 'Source\font\'
 }
 
-pdgoc -sim -device -name="Particles" -author="PdGo" -desc="Particle System Demo" -bundle-id=com.pdgo.particles -version=1.0 -build-number=1
+pdgoc -sim -device -name "Particles" -author "PdGo" -desc "Particle System Demo" -bundle-id com.pdgo.particles -version 1.0 -build-number 1
