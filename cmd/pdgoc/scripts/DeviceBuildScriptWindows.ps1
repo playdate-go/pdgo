@@ -86,7 +86,9 @@ $targetJson | ConvertTo-Json -Depth 10 | Set-Content -Path $jsonSource
 
 # Step 3: Build with TinyGo
 Write-Host "Step 3: Compiling Go code with TinyGo..."
-scoop reset go@1.25.8
+if ($env:CI -ne '1') {
+    scoop reset go@1.25.8
+}
 & $TinyGoPath build -target=playdate -o "$BuildDirAbs/game.o" .
 
 # Step 4: Compile setup.c from SDK
