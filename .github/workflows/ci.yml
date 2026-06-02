@@ -220,6 +220,7 @@ jobs:
       - name: Run install.ps1
         shell: pwsh
         run: |
+          "CI=1" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
           $env:CI = '1'
           pwsh -File install.ps1
 
