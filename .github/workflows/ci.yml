@@ -136,8 +136,28 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      actions: write
 
     steps:
+      - name: Delete old artifacts
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: { artifacts } } = await github.rest.actions.listArtifactsForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
+            for (const artifact of artifacts) {
+              if (artifact.name === 'pdx-bundles-linux' && artifact.workflow_run.id !== context.runId) {
+                await github.rest.actions.deleteArtifact({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  artifact_id: artifact.id,
+                });
+                console.log(`Deleted old artifact: ${artifact.name} (run ${artifact.workflow_run.id})`);
+              }
+            }
+
       - name: Install ARM toolchain
         uses: carlosperate/arm-none-eabi-gcc-action@v1
 
@@ -192,13 +212,51 @@ jobs:
             -build-number 1
           SDL_AUDIODRIVER=dummy xvfb-run "$PLAYDATE_SDK_PATH/bin/PlaydateSimulator" \
             "$PWD/HelloWorld_sim.pdx" &
+          SIM_PID=$!
+          sleep 5
+          if kill -0 $SIM_PID 2>/dev/null; then
+            echo "Simulator launched OK"
+            kill $SIM_PID 2>/dev/null || true
+          else
+            echo "Simulator failed to launch"
+            exit 1
+          fi
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: pdx-bundles-linux
+          overwrite: true
+          path: |
+            game_examples/**/*.pdx
+            tour_of_go/**/*.pdx
 
   windows-amd64:
     runs-on: windows-latest
     permissions:
       contents: read
+      actions: write
 
     steps:
+      - name: Delete old artifacts
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: { artifacts } } = await github.rest.actions.listArtifactsForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
+            for (const artifact of artifacts) {
+              if (artifact.name === 'pdx-bundles-windows' && artifact.workflow_run.id !== context.runId) {
+                await github.rest.actions.deleteArtifact({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  artifact_id: artifact.id,
+                });
+                console.log(`Deleted old artifact: ${artifact.name} (run ${artifact.workflow_run.id})`);
+              }
+            }
+
       - name: Install ARM toolchain
         uses: carlosperate/arm-none-eabi-gcc-action@v1
 
