@@ -215,7 +215,7 @@ jobs:
         run: |
           Invoke-WebRequest -Uri 'https://download-cdn.panic.com/playdate_sdk/Windows/PlaydateSDK-3.0.6.exe' -OutFile "$env:RUNNER_TEMP\PlaydateSDK.exe"
           Start-Process -FilePath "$env:RUNNER_TEMP\PlaydateSDK.exe" -Args '/S' -Wait
-          echo "PLAYDATE_SDK_PATH=C:\Program Files (x86)\PlaydateSDK" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+          echo "PLAYDATE_SDK_PATH=$env:USERPROFILE\Documents\PlaydateSDK" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
 
       - name: Run install.ps1
         shell: pwsh
