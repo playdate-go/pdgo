@@ -32,6 +32,9 @@ foreach ($example in $examples) {
         Set-Location (Join-Path $PSScriptRoot $example)
         try {
             & $buildScript
+            if ($LASTEXITCODE -ne 0) {
+                throw "pdgoc exited with code $LASTEXITCODE"
+            }
             $succeeded += $example
             Write-Host "$example built successfully" -ForegroundColor Green
         } catch {

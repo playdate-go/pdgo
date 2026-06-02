@@ -21,6 +21,9 @@ foreach ($dir in $dirs) {
         Set-Location $dir.FullName
         try {
             & $buildScript
+            if ($LASTEXITCODE -ne 0) {
+                throw "pdgoc exited with code $LASTEXITCODE"
+            }
             $succeeded += $name
             Write-Host "$name built successfully" -ForegroundColor Green
         } catch {
