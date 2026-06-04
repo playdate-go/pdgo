@@ -5,8 +5,8 @@
 
 ## Menu
 
-- [Quick Install](#quick-install)
 - [Overview](#overview)
+- [Quick Install](#quick-install)
 - [CLI Usage](#cli-usage)
 - [Internals](#internals)
 - [Why Not Go But TinyGo](#why-not-go-but-tinygo)
@@ -21,6 +21,20 @@
 - [Attribution](#attribution)
 - [License](#license)
 ---
+
+## Overview
+
+**PdGo** is a new development environment that allows you to create games for the [Playdate](https://play.date/) handheld gaming device using the Go programming language - for the first time ever!
+
+Hi, my name is Roman Bielyi, and I'm developing PdGo in my spare time as a personal initiative.
+This project is an independent effort and is neither endorsed by nor affiliated with [Panic Inc](https://panic.com/).
+
+As a Go developer, I immediately wanted to bring Go to the Playdate. It wasn’t straightforward, but I got it working - hope you’ll enjoy experimenting with it.
+
+>[!IMPORTANT]  
+> This project is currently under active development. Not all APIs are covered yet, and not all features have been fully tested or implemented. PRs are always welcome.
+> The main objective now is to release a stable 1.0.x version.
+> To achieve this, we need to complete our tasks defined in the project's Roadmap 
 
 ## Quick Install
 
@@ -85,60 +99,15 @@ The installer automatically detects which mode to use by checking for `cmd/pdgoc
 
 Result: `~/tinygo-playdate/bin/tinygo` - a TinyGo compiler that accepts `-target=playdate`
 
-### How TinyGo with Playdate support works
 
-Unlike standard Go where the runtime is baked into the compiler binary, **TinyGo keeps its runtime as plain `.go` source files on disk** (`src/runtime/*.go`). Every time you run `tinygo build`, the compiler reads and compiles those runtime sources fresh as part of your project.
-
-This is what makes the Playdate support strategy possible:
-
-```
-1. Download official TinyGo release (pre-compiled binary for your platform)
-                          │
-                          ▼
-2. Inject Playdate patches into the TinyGo directory:
-   ├── targets/playdate.json        ← target config (read at build time)
-   ├── targets/playdate.ld          ← linker script (read at build time)
-   ├── src/runtime/runtime_playdate.go  ← Playdate runtime (compiled per build)
-   └── src/runtime/gc_playdate.go       ← Playdate GC (compiled per build)
-                          │
-                          ▼
-3. When you build a game (pdgoc -device):
-   TinyGo reads targets/playdate.json
-       → compiles src/runtime/runtime_playdate.go + gc_playdate.go
-       → compiles your game code
-       → links everything together using playdate.ld
-       → produces ARM ELF binary for Playdate hardware
-```
-
-The patches are **not** compiled into the `tinygo` binary itself — they are loose source files that TinyGo picks up and compiles on every build. This means you get a fully working Playdate toolchain in ~1-2 minutes instead of building TinyGo from source (~25 minutes).
-
-> [!WARNING]
-> Windows is not currently supported. Linux and macOS only.
+>[!IMPORTANT]
+> The patches are **not** compiled into the `tinygo` binary itself - they are loose source files that TinyGo picks up and compiles on every build. This means you get a fully working Playdate toolchain in a few minutes instead of building TinyGo from source (dozens of minutes, in example approx. 8-9 minutes on MacBook Pro M5 Pro (15 CPUs) ).
 
 ---
 
-## Overview
-
->[!NOTE]  
-> This project is currently under active development, all API covered but not all features have been fully tested or implemented yet, PRs are always welcome.  
-> Tested on macOS, tinygo 0.40.1 darwin/arm64, go1.25.6, LLVM 20.1.1, Playdate OS 3.0.2.
-
->[!NOTE]  
-> Playdate SDK >= 3.0.2 is required  
-> Go version must be ≥ 1.21 and ≤ the version used to build TinyGo. For example, if TinyGo was built with Go 1.25, you cannot use Go 1.26.
-
-Hi, my name is Roman Bielyi, and I'm developing this project in my spare time as a personal initiative.
-This project is an independent effort and is neither endorsed by nor affiliated with [Panic Inc](https://panic.com/).
-
-As a Go developer, I immediately wanted to bring Go to the [Playdate](https://play.date/). It wasn’t straightforward, but I got it working -- hope you’ll enjoy experimenting with it.
-
->[!IMPORTANT]  
-The main objective now is to release a stable 1.0.x version.
-To achieve this, we need to rewrite all official Playdate SDK examples from C/Lua into Go and ensure that the Go API bindings are mature, stable, and provide complete coverage of all subsystems.
-
 ## CLI Usage
 
-`pdgoc` is a command-line tool that handles **everything** for building Go apps for Playdate, both Simulator and Device builds.
+`pdgoc` is a command-line tool that handles **everything** for building for the Playdate, both Simulator and Device builds.
 
 > [!IMPORTANT]  
 > **Always use `pdgoc` for building.** Do not try to run `go build` or `tinygo build` directly because `pdgoc` handles all the complexity: SDK paths, CGO flags, temporary files, etc.
@@ -234,6 +203,36 @@ func main() {}
 ```
 
 # Internals
+
+### Installator:
+
+Unlike standard Go where the runtime is baked into the compiler binary, **TinyGo keeps its runtime as plain `.go` source files on disk** (`src/runtime/*.go`). Every time you run `tinygo build`, the compiler reads and compiles those runtime sources fresh as part of your project.
+
+This is what makes the Playdate support strategy possible:
+
+```
+1. Download official TinyGo release (pre-compiled binary for your platform)
+                          │
+                          ▼
+2. Inject Playdate patches into the TinyGo directory:
+   ├── targets/playdate.json        ← target config (read at build time)
+   ├── targets/playdate.ld          ← linker script (read at build time)
+   ├── src/runtime/runtime_playdate.go  ← Playdate runtime (compiled per build)
+   └── src/runtime/gc_playdate.go       ← Playdate GC (compiled per build)
+                          │
+                          ▼
+3. When you build a game (pdgoc -device):
+   TinyGo reads targets/playdate.json
+       → compiles src/runtime/runtime_playdate.go + gc_playdate.go
+       → compiles your game code
+       → generates C runtime wrapper (pd_runtime.c) with CGO bindings to Playdate C API
+       → arm-none-eabi-gcc compiles pd_runtime.c to pd_runtime.o (with Cortex-M7 flags)
+       → arm-none-eabi-ar creates libpd.a static library from pd_runtime.o
+       → TinyGo links against libpd.a using playdate.ld linker script
+       → arm-none-eabi-gcc compiles SDK setup.c (C_API/buildsupport/setup.c)
+       → arm-none-eabi-gcc links setup.o + pd_runtime.o + game.o into pdex.elf (ARM binary)
+       → pdc packages pdex.elf + game assets into final .pdx bundle
+```
 
 ### Device:
 
