@@ -114,8 +114,10 @@ if [ -z "$PLAYDATE_SDK_PATH" ] || [ ! -d "$PLAYDATE_SDK_PATH" ]; then
             echo -e "${CYAN}Downloading Playdate SDK for Linux...${NC}"
             mkdir -p "$SDK_TMP"
             curl -sL "https://download.panic.com/playdate_sdk/Linux/PlaydateSDK-latest.tar.gz" | tar xz -C "$SDK_TMP"
-            PLAYDATE_SDK_PATH=$(ls -d "$SDK_TMP"/PlaydateSDK-* | head -1)
-            echo -e "${YELLOW}PLAYDATE_SDK_PATH=$PLAYDATE_SDK_PATH${NC}"
+            SDK_EXTRACTED=$(ls -d "$SDK_TMP"/PlaydateSDK-* | head -1)
+            PLAYDATE_SDK_PATH="$HOME/Developer/PlaydateSDK"
+            mkdir -p "$HOME/Developer"
+            mv "$SDK_EXTRACTED" "$PLAYDATE_SDK_PATH"
             echo -e "${YELLOW}Add this to your shell profile to persist across sessions:${NC}"
             echo -e "  export PLAYDATE_SDK_PATH=\"$PLAYDATE_SDK_PATH\""
         fi
