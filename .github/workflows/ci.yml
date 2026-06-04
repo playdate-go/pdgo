@@ -323,6 +323,22 @@ jobs:
             exit 1
           }
 
+      - name: Simulator test — generics_all
+        shell: pwsh
+        run: |
+          cd tour_of_go\generics_all
+          pdgoc -sim -name TourOfGoGenericsAll -author ci -desc test -bundle-id com.test.tog-generics -version 1.0 -build-number 1
+          Start-Process "$env:PLAYDATE_SDK_PATH\bin\PlaydateSimulator.exe" -ArgumentList "$PWD\TourOfGoGenericsAll_sim.pdx"
+          Start-Sleep -Seconds 5
+          $sim = Get-Process -Name "PlaydateSimulator" -ErrorAction SilentlyContinue
+          if ($sim) {
+            Write-Host "Simulator launched OK"
+            Stop-Process -Name "PlaydateSimulator" -Force
+          } else {
+            Write-Host "Simulator failed to launch"
+            exit 1
+          }
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
