@@ -290,9 +290,7 @@ As a result, BSS is reduced from approx. 1MB to approx. 300 bytes.
 ```go
 const needsStaticHeap = false
 
-func initHeap() {
-    // No initialization needed - Playdate SDK handles it
-}
+func initHeap() {}
 ```
 
 </details>
@@ -325,8 +323,7 @@ No scheduler, no threading, no dynamic stack management. A fixed stack size of 1
 * Target: `thumbv7em-unknown-unknown-eabihf`
 * CPU: `cortex-m7` with FPU (`-mfpu=fpv5-sp-d16`, `-mfloat-abi=hard`)
 * Features: Thumb-2, DSP, hardware divide, VFP4
-* Dead Code Elimination: Unused functions stripped via linker script
-* Link-Time Optimization: Cross-module inlining via LLVM
+* Unused code stripped via `--gc-sections` linker flag combined with `-ffunction-sections -fdata-sections` compiler flags
 
 <details>
 <summary>click to see: playdate.json & playdate.ld</summary>
@@ -363,7 +360,7 @@ SECTIONS
 }
 ```
 
-`/DISCARD/` removes unused ARM exception sections, `KEEP()` preserves only critical entry points.
+`/DISCARD/` removes unused ARM exception sections, `KEEP()` prevents critical entry points from being stripped by `--gc-sections`.
 
 </details>
 
