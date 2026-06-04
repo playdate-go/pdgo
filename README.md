@@ -1,5 +1,7 @@
 <img src="assets/magazine.jpg" alt="Cranko! Magazine Issue 7" width="700" style="display: inline-block; vertical-align: middle; margin: 0 10px;">
 
+We are featured in Cranko! magazine - https://cranknockout.com/
+
 
 [![CI](https://github.com/playdate-go/pdgo/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/playdate-go/pdgo/actions/workflows/ci.yml)
 
