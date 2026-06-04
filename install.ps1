@@ -256,6 +256,10 @@ if (-not (Test-Path $sdkPath)) {
     exit 1
 }
 
+if ($env:CI -eq '1' -and $env:GITHUB_ENV) {
+    "PLAYDATE_SDK_PATH=$sdkPath" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+}
+
 $sdkVersionPath = Join-Path $sdkPath 'VERSION.txt'
 $sdkVersion = if (Test-Path $sdkVersionPath) { (Get-Content $sdkVersionPath).Trim() } else { 'unknown' }
 Write-Host '  Playdate SDK: ' -NoNewline; Write-Host $sdkVersion -ForegroundColor Green

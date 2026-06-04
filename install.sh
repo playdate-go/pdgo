@@ -128,6 +128,10 @@ if [ -z "$PLAYDATE_SDK_PATH" ] || [ ! -d "$PLAYDATE_SDK_PATH" ]; then
         fi
 
         export PLAYDATE_SDK_PATH
+
+        if [ "$CI" = "1" ] && [ -n "$GITHUB_ENV" ]; then
+            echo "PLAYDATE_SDK_PATH=$PLAYDATE_SDK_PATH" >> "$GITHUB_ENV"
+        fi
     else
         echo ""
         echo "1. Download Playdate SDK from https://play.date/dev/"
