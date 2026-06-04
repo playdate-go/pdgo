@@ -26,6 +26,7 @@ We are featured in **Cranko!** magazine - https://cranknockout.com/
 ## Overview
 
 **PdGo** is a new development environment that allows you to create games for the [Playdate](https://play.date/) handheld gaming device using the Go programming language - for the first time ever!
+Supports macOS, Linux, Windows platform. 
 
 Hi, my name is Roman Bielyi, and I'm developing PdGo in my spare time as a personal initiative.
 This project is an independent effort and is neither endorsed by nor affiliated with [Panic Inc](https://panic.com/).
@@ -42,7 +43,7 @@ As a Go developer, I immediately wanted to bring Go to the Playdate. It wasn’t
 >[!NOTE]
 > On macOS the ARM toolchain ships with the Playdate SDK, on Windows it's installed by Scoop via install.ps1, but on Linux there's no built-in source - so you need to install it manually using `sudo apt install gcc-arm-none-eabi`  
 
-### For nacOS and Linux
+### For macOS and Linux
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/playdate-go/pdgo/main/install.sh | bash
