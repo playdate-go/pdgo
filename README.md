@@ -1,5 +1,6 @@
 
 <img src="assets/pdgo-logo.png" alt="Logo" width="270"  >
+<img src="assets/magazine.jpg" alt="Cranko! Magazine Issue 7" width="270"  >
 
 [![CI](https://github.com/playdate-go/pdgo/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/playdate-go/pdgo/actions/workflows/ci.yml)
 
