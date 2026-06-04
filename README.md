@@ -5,14 +5,14 @@
 
 ## Menu
 
-- [Overview](#overview)
 - [Quick Install](#quick-install)
-- [Usage](#usage)
+- [Overview](#overview)
+- [CLI Usage](#cli-usage)
 - [Internals](#internals)
 - [Why Not Go But TinyGo](#why-not-go-but-tinygo)
-- [Flow](#flow)
+- [Build Flow](#build-flow)
 - [Known Issues](#known-issues)
-- [API Bindings](#api-bindings)
+- [API Documentation](#api-documentation)
 - [Examples](#examples)
 - [A Tour Of Go](#a-tour-of-go)
 - [Roadmap](#roadmap)
@@ -30,51 +30,24 @@
 curl -fsSL https://raw.githubusercontent.com/playdate-go/pdgo/main/install.sh | bash
 ```
 
-This installs **everything** you need:
-- `pdgoc` - the build tool
-- Custom `TinyGo` with Playdate support (for device builds)
-- Configures your PATH automatically
+### Windows
 
-
-> [!IMPORTANT]
-> The install script will automatically compile LLVM from source (in example ~9 minutes on Apple Silicon M5 Pro (15 CPU) and ~25-30 minutes on Apple Sillicon M1 (8-CPU), only needed once).
-
-### For Windows
-
-Open a Powershell terminal and run:
 ```powershell
 iwr -useb https://raw.githubusercontent.com/playdate-go/pdgo/main/install.ps1 | iex
 ```
-Log out and login back to ensure paths are properly updated.
 
-The installer uses [Scoop](https://scoop.sh) to manage dependencies, and will install it automatically if not present.
+The Windows installer uses [Scoop](https://scoop.sh) to manage dependencies, and will install it automatically if not present.
 
 If you have issues with the installer, create an issue [here](https://github.com/playdate-go/pdgo/issues).
 
-### Pre-install LLVM (Linux only - speeds up build)
+Log out and login back to ensure paths are properly updated.
 
-#### Ubuntu/Debian
-```bash
-wget https://apt.llvm.org/llvm.sh
-chmod +x llvm.sh
-sudo ./llvm.sh 20
-sudo apt install clang-20 llvm-20-dev lld-20 libclang-20-dev
-```
 
-#### Fedora
-```bash
-sudo dnf install llvm20-devel clang20-devel lld20-devel
-```
-
-#### Arch Linux
-```bash
-sudo pacman -S llvm clang lld
-```
-
-### ARM Toolchain
-
-- **macOS**: Included with Playdate SDK - no separate installation needed
-- **Linux**: Install via package manager: `sudo apt install gcc-arm-none-eabi`
+This installs **everything** you need:
+- Dependencies
+- `pdgoc` - the build tool
+- Prebuilt`TinyGo` binary with custom Playdate support (for device builds)
+- Configures your PATH automatically
 
 
 ### Installation Modes
@@ -157,7 +130,7 @@ As a Go developer, I immediately wanted to bring Go to the [Playdate](https://pl
 The main objective now is to release a stable 1.0.x version.
 To achieve this, we need to rewrite all official Playdate SDK examples from C/Lua into Go and ensure that the Go API bindings are mature, stable, and provide complete coverage of all subsystems.
 
-## Usage
+## CLI Usage
 
 `pdgoc` is a command-line tool that handles **everything** for building Go apps for Playdate, both Simulator and Device builds.
 
@@ -459,9 +432,9 @@ Playdate requires: bare-metal ARM Cortex-M7, no operating system, tiny runtime, 
 
 TinyGo bridges this gap by reimplementing Go compilation targeting embedded systems with LLVM backend. Our custom TinyGo build supports CGO on bare-metal Playdate hardware through a unified C wrapper layer (`pd_cgo.c`).
 
-## Flow:
+## Build Flow:
 
-### Device Build
+### Device
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -482,7 +455,7 @@ TinyGo bridges this gap by reimplementing Go compilation targeting embedded syst
 │  7. Delete Source/pdxinfo                                   │
 └─────────────────────────────────────────────────────────────┘
 ```
-### Simulator Build
+### Simulator
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -589,7 +562,7 @@ On TinyGo ARM/Playdate: only use `fmt.Sprintf`/`fmt.Sprint` with **basic concret
 
 ---
 
-## API Bindings
+## API Documentation
 The latest full documentation for API bindings is hosted here:
 https://pkg.go.dev/github.com/playdate-go/pdgo#section-documentation
 
