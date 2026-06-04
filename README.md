@@ -24,6 +24,9 @@
 
 ## Quick Install
 
+>[!NOTE]
+> On macOS the ARM toolchain ships with the Playdate SDK, on Windows it's installed by Scoop via install.ps1, but on Linux there's no built-in source - so you need to install it manually using `sudo apt install gcc-arm-none-eabi`  
+
 ### For MacOS and Linux
 
 ```bash
@@ -57,7 +60,7 @@ The install script automatically detects how it's being run and adjusts accordin
 | Mode | How to Run | pdgoc Source | Playdate Patches | Use Case |
 |------|-----------|--------------|------------------|----------|
 | **Local** | `./install.sh` from repo root | Local `cmd/pdgoc/` | Local `cmd/pdgoc/tinygo-patches/` | Development & testing |
-| **Remote** | `curl ... | bash` | GitHub tarball | GitHub raw URLs | Production installation |
+| **Remote** | `curl` ... \ `iwr` ... | `bash` / `ps` | GitHub tarball | GitHub raw URLs | Production installation |
 
 **Local Mode Benefits:**
 - Build from local source - test your changes before committing
@@ -68,14 +71,17 @@ The installer automatically detects which mode to use by checking for `cmd/pdgoc
 
 ### What the installer does
 
-1. **Installs pdgoc** - builds from source with version info injected
-2. **Downloads TinyGo** - downloads the official pre-compiled TinyGo v0.40.1 release for your OS/arch to `~/tinygo-playdate`
-3. **Adds Playdate support** - injects custom files into TinyGo:
+1. **Installs dependencies** (platform-specific):
+   - **All platforms**: requires Playdate SDK installed manually from [play.date/dev](https://play.date/dev/) (set `PLAYDATE_SDK_PATH` if not in default location)
+   - **Windows only**: installs Scoop (package manager) and all required dependencies automatically via Scoop: `go`, `git`, `mingw` (for simulator CGO builds), `gcc-arm-none-eabi` (for device builds)
+2. **Installs pdgoc** - builds from source with version info injected
+3. **Downloads TinyGo** - downloads the official pre-compiled TinyGo v0.40.1 release for your OS/arch to `~/tinygo-playdate`
+4. **Adds Playdate support** - injects custom files into TinyGo:
    - `playdate.json` - target config (Cortex-M7, custom GC, no scheduler)
    - `playdate.ld` - linker script (memory layout, entry point)
    - `runtime_playdate.go` - platform runtime (time, console output via SDK)
-   - `gc_playdate.go` - leaking GC type (heap allocations never reclaimed unless manually freed, GC will be implemented later, plese see https://github.com/playdate-go/pdgo/issues/6)
-4. **Configures PATH** - adds `pdgoc` and `tinygo` to your shell
+   - `gc_playdate.go` - leaking GC type (heap allocations never reclaimed unless manually freed, GC will be implemented later, please see https://github.com/playdate-go/pdgo/issues/6)
+5. **Configures PATH** - adds `pdgoc` and `tinygo` to your shell
 
 Result: `~/tinygo-playdate/bin/tinygo` - a TinyGo compiler that accepts `-target=playdate`
 
