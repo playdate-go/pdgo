@@ -573,11 +573,20 @@ https://pkg.go.dev/github.com/playdate-go/pdgo#section-documentation
 > We will add more complex examples as the project progresses
 
 To build all examples please do this:
+
+### For macOS and Linux
+
 ```bash
 # in project repo root
 chmod +x game_examples/build_all.sh 
 chmod +x game_examples/*/build.sh
 ./game_examples/build_all.sh
+```
+
+### For Windows
+```powershell
+cd game_examples
+build_all.ps1
 ```
 
 Each example includes a `build.sh` script that runs `pdgoc` with all necessary flags.
