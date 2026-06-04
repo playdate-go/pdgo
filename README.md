@@ -1,6 +1,7 @@
-
-<img src="assets/pdgo-logo.png" alt="Logo" width="270"  >
-<img src="assets/magazine.jpg" alt="Cranko! Magazine Issue 7" width="270"  >
+<p style="text-align: center;">
+  <img src="assets/pdgo-logo.png" alt="Logo" width="270" style="display: inline-block; vertical-align: middle; margin: 0 10px;">
+  <img src="assets/magazine.jpg" alt="Cranko! Magazine Issue 7" width="500" style="display: inline-block; vertical-align: middle; margin: 0 10px;">
+</p>
 
 [![CI](https://github.com/playdate-go/pdgo/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/playdate-go/pdgo/actions/workflows/ci.yml)
 
