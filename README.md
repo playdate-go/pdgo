@@ -204,7 +204,7 @@ func main() {}
 
 # Internals
 
-### Installator:
+### Installer:
 
 Unlike standard Go where the runtime is baked into the compiler binary, **TinyGo keeps its runtime as plain `.go` source files on disk** (`src/runtime/*.go`). Every time you run `tinygo build`, the compiler reads and compiles those runtime sources fresh as part of your project.
 
@@ -217,8 +217,8 @@ This is what makes the Playdate support strategy possible:
 2. Inject Playdate patches into the TinyGo directory:
    ├── targets/playdate.json        ← target config (read at build time)
    ├── targets/playdate.ld          ← linker script (read at build time)
-   ├── src/runtime/runtime_playdate.go  ← Playdate runtime (compiled per build)
-   └── src/runtime/gc_playdate.go       ← Playdate GC (compiled per build)
+   ├── src/runtime/runtime_playdate.go  ← platform runtime: time, console output, runtime_init entry point (compiled per build)
+   └── src/runtime/gc_playdate.go       ← Playdate GC: heap alloc via _cgo_pd_realloc, leaking (no-op GC, manual free required)
                           │
                           ▼
 3. When you build a game (pdgoc -device):
@@ -236,10 +236,9 @@ This is what makes the Playdate support strategy possible:
 
 ### Device:
 
-For Playdate hardware `pdgoc` uses a custom [TinyGo](https://tinygo.org/) build with full Playdate hardware support instead of standard Go build tools.
 
 **Custom GC**:  
-Custom TinyGo build for Playdate currently uses "leaking" GC type–heap allocations from both Go and the Playdate C API are never reclaimed unless you free them manually.
+Currently uses "leaking" GC type–heap allocations from both Go and the Playdate C API are never reclaimed unless you free them manually.
 
 This isn't the goal. We're building a conservative mark-and-sweep GC designed for Playdate's constraints:
 - Tracks Go-level objects conservatively, integrated with the SDK allocator.
@@ -248,7 +247,7 @@ This isn't the goal. We're building a conservative mark-and-sweep GC designed fo
 
 The priority is making it work reliably. Concrete specifications will follow. Once stable, the headache shifts from manual frees to what every Go developer already handles on constrained systems: keeping heap churn low. A much better problem to have.
 
-Follow this link to the progress:
+Follow this link to the progress https://github.com/playdate-go/pdgo/issues/6: 
 
 <details>
 <summary>click to see: gc_playdate.go</summary>
@@ -299,7 +298,7 @@ func initHeap() {
 </details>
 
 **Minimal Runtime Configuration**:  
-No scheduler, no threading, no dynamic stack management. A fixed stack size of ~60KB is used instead of Go's traditional growable stacks.
+No scheduler, no threading, no dynamic stack management. A fixed stack size of 128KB is used instead of Go's traditional growable stacks.
 
 <details>
 <summary>click to see: playdate.json</summary>
@@ -315,7 +314,7 @@ No scheduler, no threading, no dynamic stack management. A fixed stack size of ~
     "scheduler": "none",
     "serial": "none",
     "automatic-stack-size": false,
-    "default-stack-size": 61800,
+    "default-stack-size": 131072,
     "cflags": ["-DTARGET_PLAYDATE=1", "-mfloat-abi=hard", "-mfpu=fpv5-sp-d16"]
 }
 ```
