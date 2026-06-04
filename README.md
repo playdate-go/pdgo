@@ -431,7 +431,7 @@ Go Source -> TinyGo Frontend -> LLVM IR -> LLVM Backend -> ARM Thumb-2 ELF
 Summary: Standard Go is designed for desktop/server environments, full operating systems, abundant memory (GB).
 Playdate requires: bare-metal ARM Cortex-M7, no operating system, tiny runtime, and manual memory management (conservative mark-and-sweep GC planned).
 
-TinyGo bridges this gap by reimplementing Go compilation targeting embedded systems with LLVM backend. Our custom TinyGo build supports CGO on bare-metal Playdate hardware through a unified C wrapper layer (`pd_cgo.c`).
+TinyGo bridges this gap by reimplementing Go compilation targeting embedded systems with LLVM backend. We use the official TinyGo release with injected patches (target config, linker script, runtime, GC) to support CGO on bare-metal Playdate hardware through a unified C wrapper layer (`pd_cgo.c`).
 
 ## Build Flow:
 
