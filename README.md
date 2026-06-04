@@ -25,8 +25,8 @@ We are featured in **Cranko!** magazine - https://cranknockout.com/
 
 ## Overview
 
-**PdGo** is a new development environment that allows you to create games for the [Playdate](https://play.date/) handheld gaming device using the Go programming language - for the first time ever!
-Supports macOS, Linux, Windows platform. 
+**PdGo** is a new development environment that allows you to create games for the [Playdate](https://play.date/) handheld gaming device using the Go programming language - for the first time ever!  
+Supports macOS, Linux, Windows platforms. 
 
 Hi, my name is Roman Bielyi, and I'm developing PdGo in my spare time as a personal initiative.
 This project is an independent effort and is neither endorsed by nor affiliated with [Panic Inc](https://panic.com/).
