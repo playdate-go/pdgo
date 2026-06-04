@@ -772,9 +772,9 @@ Using these links and places, you can discuss the PdGo project with each other:
 1) https://discord.com/channels/118456055842734083/1464001888243548181
 2) https://discord.com/channels/675983554655551509/1464004567476867247
 
-**Cranko!**
-Featured in Cranko! Magazine by Cranknockout Publishing, Issue #7 (May 2026)
-Special thanks to the amazing Patricio Land!
+**Magazines**  
+Featured in Cranko! printed magazine by Cranknockout Publishing, Issue #7 (May 2026)
+Special thanks to the amazing [Patricio Land](https://www.linkedin.com/in/landpatricio/) for interviewing us and for his support!
 
 <img src="assets/cover7_small.png" alt="Cranko! Magazine Issue 7" width="300" style="display: inline-block; vertical-align: middle; margin: 0 10px;">
 
