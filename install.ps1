@@ -223,13 +223,36 @@ Write-Host '  Go: ' -NoNewline; Write-Host $goVersion -ForegroundColor Green
 # Check Playdate SDK
 $sdkPath = $env:PLAYDATE_SDK_PATH
 if ([string]::IsNullOrWhiteSpace($sdkPath)) {
-    $sdkPath = Join-Path $HOME 'Documents\PlaydateSDK'
-    Write-Host '  PLAYDATE_SDK_PATH not set. Inferring default path...' -ForegroundColor DarkGray
+    $sdkPath = Join-Path $env:USERPROFILE 'Documents\PlaydateSDK'
 }
 
 if (-not (Test-Path $sdkPath)) {
-    Write-Host "ERROR: Playdate SDK not found at: $sdkPath" -ForegroundColor Red
-    Write-Host 'Install it to the default location or set PLAYDATE_SDK_PATH.'
+    Write-Host "Playdate SDK not found at: $sdkPath" -ForegroundColor Yellow
+    if ($env:CI -eq '1') {
+        Write-Host 'CI detected - installing Playdate SDK automatically...' -ForegroundColor Yellow
+        $sdkTmp = Join-Path $env:RUNNER_TEMP 'PlaydateSDK.exe'
+        Invoke-WebRequest -Uri 'https://download-cdn.panic.com/playdate_sdk/Windows/PlaydateSDK-3.0.6.exe' -OutFile $sdkTmp
+        Start-Process -FilePath $sdkTmp -Args '/S' -Wait
+        $sdkPath = Join-Path $env:USERPROFILE 'Documents\PlaydateSDK'
+    } else {
+        $response = Read-Host 'Download and install Playdate SDK automatically? [Y/n]'
+        if ($response -notmatch '^[Nn]') {
+            $sdkTmp = Join-Path ([System.IO.Path]::GetTempPath()) 'PlaydateSDK.exe'
+            Write-Host 'Downloading Playdate SDK for Windows...' -ForegroundColor Cyan
+            Invoke-WebRequest -Uri 'https://download-cdn.panic.com/playdate_sdk/Windows/PlaydateSDK-3.0.6.exe' -OutFile $sdkTmp
+            Write-Host 'Installing Playdate SDK (silent)...' -ForegroundColor Cyan
+            Start-Process -FilePath $sdkTmp -Args '/S' -Wait
+            Remove-Item -Path $sdkTmp -Force -ErrorAction Ignore
+            $sdkPath = Join-Path $env:USERPROFILE 'Documents\PlaydateSDK'
+        } else {
+            Write-Host 'Install it from https://play.date/dev/ and set PLAYDATE_SDK_PATH.' -ForegroundColor Red
+            exit 1
+        }
+    }
+}
+
+if (-not (Test-Path $sdkPath)) {
+    Write-Host "ERROR: Playdate SDK installation failed" -ForegroundColor Red
     exit 1
 }
 

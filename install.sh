@@ -78,17 +78,61 @@ echo -e "  Go: ${GREEN}$GO_VERSION${NC}"
 
 # Check Playdate SDK
 if [ -z "$PLAYDATE_SDK_PATH" ]; then
-    echo -e "${RED}ERROR: PLAYDATE_SDK_PATH is not set${NC}"
-    echo ""
-    echo "1. Download Playdate SDK from https://play.date/dev/"
-    echo "2. Add to your shell profile (~/.zshrc or ~/.bashrc):"
-    echo "   export PLAYDATE_SDK_PATH=\"/path/to/PlaydateSDK\""
-    exit 1
+    # Try default paths
+    if [ -d "$HOME/Developer/PlaydateSDK" ]; then
+        PLAYDATE_SDK_PATH="$HOME/Developer/PlaydateSDK"
+    fi
 fi
 
-if [ ! -d "$PLAYDATE_SDK_PATH" ]; then
-    echo -e "${RED}ERROR: PLAYDATE_SDK_PATH does not exist: $PLAYDATE_SDK_PATH${NC}"
-    exit 1
+if [ -z "$PLAYDATE_SDK_PATH" ] || [ ! -d "$PLAYDATE_SDK_PATH" ]; then
+    echo -e "${YELLOW}Playdate SDK not found.${NC}"
+    DO_INSTALL=0
+    if [ "$CI" = "1" ]; then
+        DO_INSTALL=1
+        echo -e "${YELLOW}CI detected — installing Playdate SDK automatically${NC}"
+    else
+        read -p "Download and install Playdate SDK automatically? [Y/n] " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+            DO_INSTALL=1
+        fi
+    fi
+
+    if [ "$DO_INSTALL" = "1" ]; then
+        TMPDIR="${TMPDIR:-/tmp}"
+        SDK_TMP="$TMPDIR/playdate-sdk-install"
+
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            echo -e "${CYAN}Downloading Playdate SDK for macOS...${NC}"
+            mkdir -p "$SDK_TMP"
+            curl -sL "https://download-cdn.panic.com/playdate_sdk/PlaydateSDK-latest.zip" -o "$SDK_TMP/PlaydateSDK.zip"
+            unzip -q "$SDK_TMP/PlaydateSDK.zip" -d "$SDK_TMP"
+            sudo installer -pkg "$SDK_TMP/PlaydateSDK.pkg" -target /
+            rm -rf "$SDK_TMP"
+            PLAYDATE_SDK_PATH="$HOME/Developer/PlaydateSDK"
+        else
+            echo -e "${CYAN}Downloading Playdate SDK for Linux...${NC}"
+            mkdir -p "$SDK_TMP"
+            curl -sL "https://download.panic.com/playdate_sdk/Linux/PlaydateSDK-latest.tar.gz" | tar xz -C "$SDK_TMP"
+            PLAYDATE_SDK_PATH=$(ls -d "$SDK_TMP"/PlaydateSDK-* | head -1)
+            echo -e "${YELLOW}PLAYDATE_SDK_PATH=$PLAYDATE_SDK_PATH${NC}"
+            echo -e "${YELLOW}Add this to your shell profile to persist across sessions:${NC}"
+            echo -e "  export PLAYDATE_SDK_PATH=\"$PLAYDATE_SDK_PATH\""
+        fi
+
+        if [ ! -d "$PLAYDATE_SDK_PATH" ]; then
+            echo -e "${RED}ERROR: Playdate SDK installation failed${NC}"
+            exit 1
+        fi
+
+        export PLAYDATE_SDK_PATH
+    else
+        echo ""
+        echo "1. Download Playdate SDK from https://play.date/dev/"
+        echo "2. Add to your shell profile (~/.zshrc or ~/.bashrc):"
+        echo "   export PLAYDATE_SDK_PATH=\"/path/to/PlaydateSDK\""
+        exit 1
+    fi
 fi
 
 SDK_VERSION=$(cat "$PLAYDATE_SDK_PATH/VERSION.txt" 2>/dev/null | tr -d '\n' || echo "unknown")

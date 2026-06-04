@@ -47,13 +47,6 @@ jobs:
         with:
           go-version: "1.25"
 
-      - name: Install Playdate SDK
-        run: |
-          curl -sL "https://download-cdn.panic.com/playdate_sdk/PlaydateSDK-latest.zip" -o "$RUNNER_TEMP/PlaydateSDK.zip"
-          unzip -q "$RUNNER_TEMP/PlaydateSDK.zip" -d "$RUNNER_TEMP"
-          sudo installer -pkg "$RUNNER_TEMP/PlaydateSDK.pkg" -target /
-          echo "PLAYDATE_SDK_PATH=$HOME/Developer/PlaydateSDK" >> "$GITHUB_ENV"
-
       - name: Run install.sh
         run: |
           CI=1 bash install.sh
@@ -169,12 +162,6 @@ jobs:
         with:
           go-version: "1.25"
 
-      - name: Install Playdate SDK
-        run: |
-          curl -sL "https://download.panic.com/playdate_sdk/Linux/PlaydateSDK-latest.tar.gz" | tar xz -C "$RUNNER_TEMP"
-          SDK_DIR=$(ls -d "$RUNNER_TEMP/PlaydateSDK-"* | head -1)
-          echo "PLAYDATE_SDK_PATH=$SDK_DIR" >> "$GITHUB_ENV"
-
       - name: Run install.sh
         run: CI=1 bash install.sh
 
@@ -267,13 +254,6 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: "1.25"
-
-      - name: Install Playdate SDK
-        shell: pwsh
-        run: |
-          Invoke-WebRequest -Uri 'https://download-cdn.panic.com/playdate_sdk/Windows/PlaydateSDK-3.0.6.exe' -OutFile "$env:RUNNER_TEMP\PlaydateSDK.exe"
-          Start-Process -FilePath "$env:RUNNER_TEMP\PlaydateSDK.exe" -Args '/S' -Wait
-          echo "PLAYDATE_SDK_PATH=$env:USERPROFILE\Documents\PlaydateSDK" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
 
       - name: Run install.ps1
         shell: pwsh

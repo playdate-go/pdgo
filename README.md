@@ -72,7 +72,7 @@ The installer automatically detects which mode to use by checking for `cmd/pdgoc
 ### What the installer does
 
 1. **Installs dependencies** (platform-specific):
-   - **All platforms**: requires Playdate SDK installed manually from [play.date/dev](https://play.date/dev/) (set `PLAYDATE_SDK_PATH` if not in default location)
+   - **Playdate SDK**: downloads and installs automatically if not found (set `PLAYDATE_SDK_PATH` to override default location)
    - **Windows only**: installs Scoop (package manager) and all required dependencies automatically via Scoop: `go`, `git`, `mingw` (for simulator CGO builds), `gcc-arm-none-eabi` (for device builds)
 2. **Installs pdgoc** - builds from source with version info injected
 3. **Downloads TinyGo** - downloads the official pre-compiled TinyGo v0.40.1 release for your OS/arch to `~/tinygo-playdate`
