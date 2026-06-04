@@ -40,6 +40,7 @@ foreach ($example in $examples) {
         } catch {
             $failed += $example
             Write-Host "$example failed to build" -ForegroundColor Red
+            Write-Host $_.Exception.Message -ForegroundColor Red
         }
     } else {
         Write-Host "Skipping $example (no build.ps1 found)" -ForegroundColor Yellow

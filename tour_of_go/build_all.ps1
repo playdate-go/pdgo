@@ -29,6 +29,7 @@ foreach ($dir in $dirs) {
         } catch {
             $failed += $name
             Write-Host "$name failed to build" -ForegroundColor Red
+            Write-Host $_.Exception.Message -ForegroundColor Red
         }
         Write-Host ''
     }
