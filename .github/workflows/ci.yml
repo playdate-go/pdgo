@@ -257,6 +257,9 @@ jobs:
               }
             }
 
+      - name: Install ARM toolchain
+        uses: carlosperate/arm-none-eabi-gcc-action@v1
+
       - name: Checkout
         uses: actions/checkout@v4
 
