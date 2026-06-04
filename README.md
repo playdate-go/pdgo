@@ -102,7 +102,7 @@ Result: `~/tinygo-playdate/bin/tinygo` - a TinyGo compiler that accepts `-target
 
 
 >[!IMPORTANT]
-> The patches are **not** compiled into the `tinygo` binary itself - they are loose source files that TinyGo picks up and compiles on every build. This means you get a fully working Playdate toolchain in a few minutes instead of building TinyGo from source (dozens of minutes, in example approx. 8-9 minutes on MacBook Pro M5 Pro (15 CPUs) ).
+> The patches are **not** compiled into the `tinygo` binary itself - they are loose source files that TinyGo picks up and compiles on every build. This means you get a fully working Playdate toolchain in a few minutes ~~instead of building TinyGo from source, dozens of minutes, in example approx. 8-9 minutes on MacBook Pro M5 Pro (15 CPUs)~~.
 
 ---
 
