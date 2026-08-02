@@ -23,6 +23,7 @@ void pd_sys_setAutoLockDisabled(int disabled);
 int pd_sys_getLanguage(void);
 float pd_sys_getBatteryPercentage(void);
 float pd_sys_getBatteryVoltage(void);
+void pd_sys_setMenuImage(void* bitmap, int xOffset);
 */
 import "C"
 import "unsafe"
@@ -140,4 +141,39 @@ func (s *System) GetBatteryVoltage() float32 {
 // SetUpdateCallback sets the update callback function
 func (s *System) SetUpdateCallback(callback func() int) {
 	SetUpdateCallback(callback)
+}
+
+var eventCallbackFn func(event PDSystemEvent, arg uint32)
+
+// SetEventCallback sets callback invoked for every system event
+// arg carries only for EventKeyPressed/EventKeyReleased (the key code) and 0 otherwise.
+// filter on event yourself for the cases you care about like
+//
+//	pd.System.SetEventCallback(func(event pdgo.PDSystemEvent, arg uint32) {
+//	    if event == pdgo.EventPause { ... }
+//	})
+func (s *System) SetEventCallback(callback func(event PDSystemEvent, arg uint32)) {
+	eventCallbackFn = callback
+}
+
+// CallEventCallback is called from the C trampoline on device
+// and from the generated eventHandler on the sim
+func CallEventCallback(event PDSystemEvent, arg uint32) {
+	if eventCallbackFn != nil {
+		eventCallbackFn(event, arg)
+	}
+}
+
+//export pdgo_event_trampoline
+func pdgo_event_trampoline(event C.int, arg C.uint32_t) {
+	CallEventCallback(PDSystemEvent(event), uint32(arg))
+}
+
+// SetMenuImage sets the image shown in the system menu while paused
+func (s *System) SetMenuImage(bitmap *LCDBitmap, xOffset int) {
+	var ptr unsafe.Pointer
+	if bitmap != nil {
+		ptr = bitmap.ptr
+	}
+	C.pd_sys_setMenuImage(ptr, C.int(xOffset))
 }

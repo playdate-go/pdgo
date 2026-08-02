@@ -19,7 +19,6 @@ import (
 
 //export eventHandler
 func eventHandler(playdateAPI unsafe.Pointer, event C.int, arg C.uint32_t) C.int {
-	_ = arg
 	if pdgo.PDSystemEvent(event) == pdgo.EventInit {
 		// Set C global pd pointer
 		C.pd_set_api(playdateAPI)
@@ -28,6 +27,7 @@ func eventHandler(playdateAPI unsafe.Pointer, event C.int, arg C.uint32_t) C.int
 		initGame()
 		pdgo.SetUpdateCallback(update)
 	}
+	pdgo.System.CallEventCallback(pdgo.PDSystemEvent(event), uint32(arg))
 	return 0
 }
 `

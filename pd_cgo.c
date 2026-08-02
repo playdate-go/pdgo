@@ -152,6 +152,10 @@ float pd_sys_getBatteryVoltage(void) {
     return pd ? pd->system->getBatteryVoltage() : 4.2f;
 }
 
+void pd_sys_setMenuImage(void* bitmap, int xOffset) {
+    if (pd) pd->system->setMenuImage((LCDBitmap*)bitmap, xOffset);
+}
+
 // Update callback support
 extern int pdgo_update_trampoline(void);
 
@@ -1715,14 +1719,17 @@ void pd_set_api(void* playdate) {
 // Update callback is set via pdgo.SetUpdateCallback() in go_init
 extern void runtime_init(void);
 extern void go_init(void* playdate);
+// every event is passed to this C callback registered with in go with
+// pd.System.SetEventCallback()
+extern void pdgo_event_trampoline(int event, uint32_t arg);
 
 int eventHandler(PlaydateAPI* playdate, PDSystemEvent event, uint32_t arg) {
-    (void)arg;
     if (event == kEventInit) {
         pd = playdate;
         runtime_init();
         go_init(pd);
     }
+    pdgo_event_trampoline((int)event, arg);
     return 0;
 }
 #endif // TARGET_PLAYDATE
