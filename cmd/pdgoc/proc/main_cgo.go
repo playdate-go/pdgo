@@ -27,7 +27,7 @@ func eventHandler(playdateAPI unsafe.Pointer, event C.int, arg C.uint32_t) C.int
 		initGame()
 		pdgo.SetUpdateCallback(update)
 	}
-	pdgo.System.CallEventCallback(pdgo.PDSystemEvent(event), uint32(arg))
+	pdgo.CallEventCallback(pdgo.PDSystemEvent(event), uint32(arg))
 	return 0
 }
 `
