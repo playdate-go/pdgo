@@ -123,8 +123,7 @@ func initGame() {
 	result := enc.String()
 	pd.System.LogToConsole("Encoded JSON:")
 	pd.System.LogToConsole(result)
-
-	enc.Free()
+	// Encoder freed by GC finalizer
 
 	pd.System.LogToConsole("")
 	pd.System.LogToConsole("=========================================")

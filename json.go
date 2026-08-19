@@ -26,6 +26,7 @@ int pd_json_encoder_getOutputLen(void);
 void pd_json_encoder_free(void);
 */
 import "C"
+import "runtime"
 import "unsafe"
 
 // JSON provides access to Playdate JSON parsing
@@ -422,7 +423,11 @@ type JSONEncoder struct {
 // If pretty is true, output will be formatted with indentation
 func (j *JSON) NewEncoder(pretty bool) *JSONEncoder {
 	C.pd_json_encoder_init(boolToInt(pretty))
-	return &JSONEncoder{pretty: pretty}
+	enc := &JSONEncoder{pretty: pretty}
+	runtime.SetFinalizer(enc, func(e *JSONEncoder) {
+		C.pd_json_encoder_free()
+	})
+	return enc
 }
 
 // StartObject starts a JSON object {...}
@@ -506,7 +511,9 @@ func (e *JSONEncoder) Bytes() []byte {
 	return result
 }
 
-// Free releases encoder resources
+// Free releases the encoder's output buffer immediately. Optional: the
+// buffer is also freed automatically by a finalizer once the encoder
+// becomes unreachable.
 func (e *JSONEncoder) Free() {
 	C.pd_json_encoder_free()
 }
