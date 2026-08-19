@@ -1,0 +1,13 @@
+--- crash at 2026/08/18 08:56:48---
+build:415038e2-3.0.5-release.202175-gitlab-runner
+   r0:e000ed04    r1:9000361c     r2:00000001    r3: 20009b8c
+  r12:0016142b    lr:90001f73     pc:90001ae8   psr: 210f0000
+ cfsr:00008200  hfsr:40000000  mmfar:e000ed04  bfar: e000ed04
+rcccsr:00000000
+heap allocated: 146144
+Lua totalbytes=0 GCdebt=0 GCestimate=0 stacksize=0
+
+crash at 2026/08/18 17:49:51
+r0:900371d8 r1:90005600 r2:90005600 r3:20009890 r12:20009910 lr:90001afd pc:90005600 psr:600f0000 cfsr:00020000 hfsr:40000000 mmfar:e000ed04 bfar:e000ed04
+heap allocated: 237472
+Lua totalbytes=0 GCdebt=0 GCestimate=0 stacksize=0
