@@ -102,11 +102,11 @@ func SetPinned(c uint8, v bool) uint8 {
 }
 func IsPinned(c uint8) bool { return c&PinFlag != 0 }
 
-// HeaderSize returns the size of the END-STATE gcHeader (after Task 7 removes
-// the transitional userStart field). The current transitional gcHeader in
-// tinygo-patches/gc_playdate.go is larger (24 bytes on target) because it
-// still carries userStart; fakeHeader here models the final 20-byte shape so
-// that BucketSize and other consumers compute against the target layout.
+// HeaderSize returns the header size the size-class buckets are laid out
+// for. The gcHeader in tinygo-patches/gc_playdate.go is 24 bytes on target
+// because it still carries a userStart field; fakeHeader here models the
+// leaner 20-byte shape so BucketSize and other consumers compute against
+// the intended layout, not the transitional one.
 //
 // fakeHeader uses fixed-width uint32 fields (not uintptr/pointers) so the
 // size is identical on 32-bit (Playdate target) and 64-bit (host) builds —

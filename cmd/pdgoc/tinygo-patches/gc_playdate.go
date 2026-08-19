@@ -22,7 +22,7 @@ type gcHeader struct {
 	_pad      [2]byte
 	prev      *gcHeader // previous in alloc list (for O(1) unlink)
 	next      *gcHeader // next in alloc list
-	nextFree  *gcHeader // free-list link (overlaid, used in Task 6)
+	nextFree  *gcHeader // free-list link (only meaningful while the block sits on a free list)
 	userStart uintptr
 }
 
