@@ -69,6 +69,6 @@ func (e *Enemy) Kill() {
 		e.alive = false
 		pd := e.game.pd
 		pd.Sprite.RemoveSprite(e.sprite)
-		pd.Sprite.FreeSprite(e.sprite)
+		// Sprite freed by GC finalizer
 	}
 }

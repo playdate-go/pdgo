@@ -131,6 +131,6 @@ func (bp *BackgroundPlane) Kill() {
 		bp.alive = false
 		pd := bp.game.pd
 		pd.Sprite.RemoveSprite(bp.sprite)
-		pd.Sprite.FreeSprite(bp.sprite)
+		// Sprite freed by GC finalizer
 	}
 }

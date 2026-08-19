@@ -52,6 +52,7 @@ int pd_network_getStatus(void);
 */
 import "C"
 import (
+	"runtime"
 	"sync"
 	"unsafe"
 )
@@ -244,6 +245,12 @@ func (h *HTTPAPI) NewConnection(server string, port int, useSSL bool) *HTTPConne
 	h.network.httpCallbacksMu.Lock()
 	h.network.httpCallbacks[conn.ptr] = &httpCallbackData{}
 	h.network.httpCallbacksMu.Unlock()
+
+	runtime.SetFinalizer(conn, func(c *HTTPConnection) {
+		if c.ptr != 0 {
+			c.Release()
+		}
+	})
 
 	return conn
 }
@@ -517,6 +524,12 @@ func (t *TCPAPI) NewConnection(server string, port int, useSSL bool) *TCPConnect
 	t.network.tcpCallbacksMu.Lock()
 	t.network.tcpCallbacks[conn.ptr] = &tcpCallbackData{}
 	t.network.tcpCallbacksMu.Unlock()
+
+	runtime.SetFinalizer(conn, func(c *TCPConnection) {
+		if c.ptr != 0 {
+			c.Release()
+		}
+	})
 
 	return conn
 }

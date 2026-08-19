@@ -274,23 +274,46 @@ else
     TARGETS_DIR="$TINYGO_DIR/targets"
     RUNTIME_DIR="$TINYGO_DIR/src/runtime"
 
+    # Playdate support files: "source_file:destination_relative_to_tinygo_root"
+    PLAYDATE_PATCHES=(
+        "playdate.json:targets/playdate.json"
+        "playdate.ld:targets/playdate.ld"
+        "runtime_playdate.go:src/runtime/runtime_playdate.go"
+        "gc_playdate.go:src/runtime/gc_playdate.go"
+        "gc_mark_playdate.go:src/runtime/gc_mark_playdate.go"
+        "gc_sweep_playdate.go:src/runtime/gc_sweep_playdate.go"
+        "gc_objectmap.go:src/runtime/gc_objectmap.go"
+        "gc_helpers.go:src/runtime/gc_helpers.go"
+        "gc_finalizer_playdate.go:src/runtime/gc_finalizer_playdate.go"
+        "gc_stack_playdate.go:src/runtime/gc_stack_playdate.go"
+        "gc_playdate_leaking.go:src/runtime/gc_playdate_leaking.go"
+        "interrupt_cortexm.go:src/runtime/interrupt/interrupt_cortexm.go"
+        "asm_arm.S:src/runtime/asm_arm.S"
+    )
+
     if [ "$USE_LOCAL_PATCHES" = true ]; then
         echo "  Patching TinyGo with local files"
         LOCAL_PATCHES_DIR="${LOCAL_REPO_ROOT}/cmd/pdgoc/tinygo-patches"
 
-        cp "${LOCAL_PATCHES_DIR}/playdate.json"   "$TARGETS_DIR/playdate.json"
-        cp "${LOCAL_PATCHES_DIR}/playdate.ld"     "$TARGETS_DIR/playdate.ld"
-        cp "${LOCAL_PATCHES_DIR}/runtime_playdate.go" "$RUNTIME_DIR/runtime_playdate.go"
-        cp "${LOCAL_PATCHES_DIR}/gc_playdate.go"      "$RUNTIME_DIR/gc_playdate.go"
+        for patch in "${PLAYDATE_PATCHES[@]}"; do
+            IFS=':' read -r src dst <<< "$patch"
+            if ! cp "${LOCAL_PATCHES_DIR}/${src}" "$TINYGO_DIR/${dst}"; then
+                echo -e "${RED}Failed to copy ${src}${NC}"
+                exit 1
+            fi
+        done
     else
         # Determine the tag/branch to use for downloading patches
         PDGO_REF=${LATEST_TAG:-"main"}
         PATCHES_BASE_URL="https://raw.githubusercontent.com/playdate-go/pdgo/${PDGO_REF}/cmd/pdgoc/tinygo-patches"
 
-        curl -sL "${PATCHES_BASE_URL}/playdate.json"        -o "$TARGETS_DIR/playdate.json"
-        curl -sL "${PATCHES_BASE_URL}/playdate.ld"          -o "$TARGETS_DIR/playdate.ld"
-        curl -sL "${PATCHES_BASE_URL}/runtime_playdate.go"  -o "$RUNTIME_DIR/runtime_playdate.go"
-        curl -sL "${PATCHES_BASE_URL}/gc_playdate.go"       -o "$RUNTIME_DIR/gc_playdate.go"
+        for patch in "${PLAYDATE_PATCHES[@]}"; do
+            IFS=':' read -r src dst <<< "$patch"
+            if ! curl -sLf "${PATCHES_BASE_URL}/${src}" -o "$TINYGO_DIR/${dst}"; then
+                echo -e "${RED}Failed to download ${src}${NC}"
+                exit 1
+            fi
+        done
     fi
 
     echo -e "  ${GREEN}TinyGo with Playdate support ready!${NC}"

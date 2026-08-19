@@ -14,6 +14,7 @@ We are featured in **Cranko!** magazine - https://cranknockout.com/
 - [Quick Install](#quick-install)
 - [CLI Usage](#cli-usage)
 - [Internals](#internals)
+- [Conservative Mark-Sweep GC](#conservative-mark-sweep-gc)
 - [Why Not Go But TinyGo](#why-not-go-but-tinygo)
 - [Build Flow](#build-flow)
 - [Known Issues](#known-issues)
@@ -97,7 +98,7 @@ The installer automatically detects which mode to use by checking for `cmd/pdgoc
    - `playdate.json` - target config (Cortex-M7, custom GC, no scheduler)
    - `playdate.ld` - linker script (memory layout, entry point)
    - `runtime_playdate.go` - platform runtime (time, console output via SDK)
-   - `gc_playdate.go` - leaking GC type (heap allocations never reclaimed unless manually freed, GC will be implemented later, please see https://github.com/playdate-go/pdgo/issues/6)
+   - `gc_playdate.go` + 8 more `gc_*` files - conservative mark-sweep GC (see [Conservative Mark-Sweep GC](#conservative-mark-sweep-gc))
 5. **Configures PATH** - adds `pdgoc` and `tinygo` to your shell
 
 Result: `~/tinygo-playdate/bin/tinygo` - a TinyGo compiler that accepts `-target=playdate`
@@ -392,6 +393,151 @@ In Unix systems it's `.so`, in macOS  it's `.dylib`, in Windows it's `.dll` '
 | `-buildmode=c-shared` | **Key**: Build as C-shared library (`.dylib`/`.so` / `.dll`) for Playdate Simulator               |
 
 
+## Conservative Mark-Sweep GC
+
+pdgo ships a **custom conservative tri-color mark-sweep GC** (`gc.playdate`) built for Playdate's constraints: a single-threaded ARM Cortex-M7, 16 MB RAM, and an SDK-managed heap.
+
+- **Allocation** goes through size-classed free-lists (8 classes, LIFO) that recycle memory in O(1); fresh blocks come from the Playdate SDK's `realloc`.
+- **Marking** is stop-the-world and non-recursive (growable mark stack), and scales with the *live* set, not the total heap. An offset-encoded side bitmap gives O(1) object lookups, including interior pointers.
+- **Sweeping** is amortized: dead objects are pushed to size-classed free-lists in microseconds and recycled by future `alloc()` calls — the pause ends when marking ends.
+- Typical pauses are 0.1-2 ms; worst case for ~2 MB live heaps is ≤3 ms.
+
+### How It Works
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│          Conservative Mark-Sweep + Free-Lists                │
+├─────────────────────────────────────────────────────────────┤
+│  Memory Allocation:                                          │
+│    ├─> Free-list hit: O(1) pop (per size class)             │
+│    └─> Miss: Playdate SDK's pd->realloc()                   │
+│                                                              │
+│  Root Scanning:                                              │
+│    ├─> Stack: scanCurrentStack() → ARM assembly              │
+│    │    (stack top captured at runtime_init)                 │
+│    └─> Globals: findGlobals() → linker symbols               │
+│                                                              │
+│  GC Cycle (stop-the-world):                                  │
+│    ├─> Mark: tri-color drain via growable mark stack         │
+│    │    (O(1) headerOf via offset-encoded side bitmap)       │
+│    ├─> Finalizers: run with panic isolation                  │
+│    └─> Sweep: dead objects → size-classed free-lists         │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Files (written to TinyGo by install.sh)
+
+| File | Purpose |
+|------|---------|
+| `gc_playdate.go` | Alloc/free/realloc entry points, GC triggers, stats |
+| `gc_mark_playdate.go` | Tri-color mark + conservative object scan |
+| `gc_sweep_playdate.go` | Sweep: dead objects → size-classed free-lists |
+| `gc_objectmap.go` | Offset-encoded side bitmap (O(1) header lookup) |
+| `gc_finalizer_playdate.go` | Finalizer table + panic-isolated invocation |
+| `gc_helpers.go` | Size classes, colors, alignment |
+| `gc_stack_playdate.go` | Root scanning: stack (ARM asm) + globals |
+| `gc_stack_playdate_arm.S` | ARM assembly for stack scanning |
+| `gc_playdate_leaking.go` | `gc.leaking` escape hatch (no-op GC) |
+| `playdate.ld` | Linker script with `_globals_start`, `_globals_end`, `_stack_top` |
+
+### Leaking vs Conservative
+
+| Aspect | `gc.leaking` (fallback) | `gc.playdate` (default) |
+|--------|------------------------|-------------------------|
+| Memory freeing | Never (leaks by design) | Mark-sweep + free-lists |
+| Alloc cost | O(1) SDK realloc | O(1) free-list pop |
+| GC pauses | None (no GC runs) | 0.1-2 ms typical, ≤3 ms @ 2 MB live |
+| Finalizers | Not supported | `runtime.SetFinalizer` |
+| GC trigger | N/A | 3x heap growth / 64 KB minimum / 4096 allocations |
+
+### Finalizers
+
+`runtime.SetFinalizer` works, and the pdgo wrappers register finalizers automatically for C-managed resources (Bitmap, Font, Sound, File) — no manual free needed. Misuse (non-pointer object, wrong finalizer signature) panics. A finalizer that itself panics is caught and logged to the console; it does not halt the device.
+
+Conservative-scanning tradeoff: a dead object can be retained if a non-pointer value on the stack or in a global happens to look like a heap pointer. The effect is bounded extra memory use, never corruption.
+
+### Observability: pd.Memory
+
+The GC exposes live statistics through the `pd.Memory` API (see [godoc](https://pkg.go.dev/github.com/playdate-go/pdgo#Memory)):
+
+```go
+stats := pd.Memory.Stats() // HeapAlloc, NumGC, LiveObjects, LastPauseNs, ...
+pause := pd.Memory.RunGC() // force a cycle, returns pause in ns
+```
+
+The `game_examples/gc_bench` example emits per-frame CSV (`frame,NumGC,HeapAlloc,LastPauseNs,LiveObjects`) for regression tracking, and `game_examples/gc_test_purego` runs device tests including a pause-budget and a free-list-reuse check.
+
+### gc.leaking Escape Hatch
+
+If the conservative GC misbehaves in production, switch back to the pre-1.0 no-op GC in one line: set `"gc": "leaking"` and change the build tag from `gc.playdate` to `gc.leaking` in `~/tinygo-playdate/targets/playdate.json`, then rebuild. Allocations then never get collected (O(1) alloc/free, no pauses).
+
+### No Static Heap
+
+Standard TinyGo embedded targets reserve heap space in BSS section. Our runtime configuration eliminates this by setting `needsStaticHeap = false`.
+As a result, BSS is reduced from approx. 1MB to approx. 300 bytes.
+
+<details>
+<summary>click to see: gc_playdate.go (core allocation + GC cycle)</summary>
+
+```go
+//go:noinline
+func alloc(size uintptr, layout unsafe.Pointer) unsafe.Pointer {
+    size = align(size)
+    sc := sizeClassOf(size)
+
+    // Fast path: reuse from free-list (O(1))
+    if h := freeListPop(sc); h != nil {
+        h.size = size
+        h.sizeClass = sc
+        allocListInsert(h)
+        objectMapMark(h.userStart, size) // re-mark bitmap
+        userData := unsafe.Pointer(h.userStart)
+        memzero(userData, size)
+        maybeTriggerGC()
+        return userData
+    }
+
+    // Slow path: fresh allocation from the Playdate SDK
+    totalSize := gcHeaderSize + size
+    ptr := _cgo_pd_realloc(nil, totalSize)
+    if ptr == nil {
+        flushFreeLists() // release cached blocks, retry once
+        ptr = _cgo_pd_realloc(nil, totalSize)
+        if ptr == nil {
+            runtimePanic("out of memory")
+        }
+    }
+
+    header := (*gcHeader)(ptr)
+    header.size = size
+    header.color = colorWhite
+    header.sizeClass = sc
+    header.userStart = uintptr(ptr) + gcHeaderSize
+    allocListInsert(header)
+    objectMapMark(header.userStart, size)
+
+    userData := unsafe.Pointer(header.userStart)
+    memzero(userData, size)
+    maybeTriggerGC()
+    return userData
+}
+
+func GC() {
+    if gcStateVal != gcStateIdle {
+        return // no re-entrant collections
+    }
+    gcStateVal = gcStateMarking
+    defer func() { gcStateVal = gcStateIdle }()
+
+    start := ticks()              // ms granularity from Playdate clock
+    gcMarkReachable()             // roots: stack (ARM asm) + globals
+    processWorkQueue()            // tri-color drain via growable mark stack
+    sweep()                       // dead objects -> size-classed free-lists
+}
+```
+
+</details>
+
 ## Why Not Go But TinyGo
 
 No Bare-Metal ARM Support:  
@@ -432,7 +578,7 @@ Go Source -> TinyGo Frontend -> LLVM IR -> LLVM Backend -> ARM Thumb-2 ELF
 ```
 
 Summary: Standard Go is designed for desktop/server environments, full operating systems, abundant memory (GB).
-Playdate requires: bare-metal ARM Cortex-M7, no operating system, tiny runtime, and manual memory management (conservative mark-and-sweep GC planned).
+Playdate requires: bare-metal ARM Cortex-M7, no operating system, tiny runtime, and a custom conservative mark-and-sweep GC (see [Conservative Mark-Sweep GC](#conservative-mark-sweep-gc)).
 
 TinyGo bridges this gap by reimplementing Go compilation targeting embedded systems with LLVM backend. We use the official TinyGo release with injected patches (target config, linker script, runtime, GC) to support CGO on bare-metal Playdate hardware through a unified C wrapper layer (`pd_cgo.c`).
 
@@ -600,9 +746,9 @@ Each example includes a `build.sh` script that runs `pdgoc` with all necessary f
 
 **Sprite Collisions** -- [game_examples/sprite_collisions](game_examples/sprite_collisions)
 
-**Tilemap** -- [game_examples/tilemap](game_examplestilemap)
+**Tilemap** -- [game_examples/tilemap](game_examples/tilemap)
 
-**JSON High and Low Level Encoding and Decoding** -- [game_examples/json](game_examples/json) | [examples/json_lowlevel](examples/json_lowlevel)
+**JSON High and Low Level Encoding and Decoding** -- [game_examples/json](game_examples/json) | [game_examples/json_lowlevel](game_examples/json_lowlevel)
 
 **Bach MIDI** -- [game_examples/bach_midi](game_examples/bach_midi)
 
@@ -617,6 +763,12 @@ Each example includes a `build.sh` script that runs `pdgoc` with all necessary f
 **Go Logo** -- [game_examples/go_logo](game_examples/go_logo)
 
 **Hello World** -- [game_examples/hello_world](game_examples/hello_world)
+
+**GC Test Suite** -- [game_examples/gc_test_purego](game_examples/gc_test_purego)
+
+**GC Pause Benchmark (per-frame CSV)** -- [game_examples/gc_bench](game_examples/gc_bench)
+
+**Realloc Debug Stats** -- [game_examples/realloc_debug](game_examples/realloc_debug)
 
 
 ## A Tour Of Go
@@ -687,7 +839,7 @@ All examples are device-tested and avoid [known TinyGo ARM fmt issues](#known-is
 - [x] Add Go-Tour like code examples to demostrate language's syntax and semantic to newcomers  
 - [ ] Add different benchmarks to compare Go with C and Lua
 - [ ] Investigate: concurrency: goroutines/scheduler support for single-threaded CPU
-- [ ] Implement conservative mark-and-sweep GC for Playdate's constraints
+- [X] GC support: conservative tri-color mark-sweep with size-classed free-lists, finalizers, `pd.Memory` stats, and `gc.leaking` escape hatch
 - [ ] Create unit tests for `pdgoc` and API bindings
 - [x] Add support for Windows OS
 

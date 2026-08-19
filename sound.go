@@ -85,7 +85,10 @@ void pd_sound_getHeadphoneState(int* headphone, int* mic);
 void pd_sound_setOutputsActive(int headphone, int speaker);
 */
 import "C"
-import "unsafe"
+import (
+	"runtime"
+	"unsafe"
+)
 
 // SoundSource represents a sound source
 type SoundSource struct {
@@ -196,7 +199,13 @@ type SynthAPI struct{}
 func (sy *SynthAPI) NewSynth() *PDSynth {
 	ptr := C.pd_sound_synth_new()
 	if ptr != nil {
-		return &PDSynth{ptr: ptr}
+		synth := &PDSynth{ptr: ptr}
+		runtime.SetFinalizer(synth, func(s *PDSynth) {
+			if s.ptr != nil {
+				C.pd_sound_synth_free(s.ptr)
+			}
+		})
+		return synth
 	}
 	return nil
 }
@@ -364,7 +373,13 @@ type SequenceAPI struct{}
 func (s *SequenceAPI) NewSequence() *SoundSequence {
 	ptr := C.pd_sound_sequence_new()
 	if ptr != nil {
-		return &SoundSequence{ptr: ptr}
+		seq := &SoundSequence{ptr: ptr}
+		runtime.SetFinalizer(seq, func(sq *SoundSequence) {
+			if sq.ptr != nil {
+				C.pd_sound_sequence_free(sq.ptr)
+			}
+		})
+		return seq
 	}
 	return nil
 }
@@ -476,7 +491,13 @@ type InstrumentAPI struct{}
 func (i *InstrumentAPI) NewInstrument() *PDSynthInstrument {
 	ptr := C.pd_sound_instrument_new()
 	if ptr != nil {
-		return &PDSynthInstrument{ptr: ptr}
+		inst := &PDSynthInstrument{ptr: ptr}
+		runtime.SetFinalizer(inst, func(p *PDSynthInstrument) {
+			if p.ptr != nil {
+				C.pd_sound_instrument_free(p.ptr)
+			}
+		})
+		return inst
 	}
 	return nil
 }
@@ -502,7 +523,13 @@ func (i *InstrumentAPI) AddVoice(inst *PDSynthInstrument, synth *PDSynth, rangeS
 func (s *Sound) NewFilePlayer() *FilePlayer {
 	ptr := C.pd_sound_fileplayer_new()
 	if ptr != nil {
-		return &FilePlayer{ptr: ptr}
+		player := &FilePlayer{ptr: ptr}
+		runtime.SetFinalizer(player, func(p *FilePlayer) {
+			if p.ptr != nil {
+				C.pd_sound_fileplayer_free(p.ptr)
+			}
+		})
+		return player
 	}
 	return nil
 }
@@ -609,7 +636,13 @@ func (s *Sound) SetFilePlayerRate(player *FilePlayer, rate float32) {
 func (s *Sound) NewSamplePlayer() *SamplePlayer {
 	ptr := C.pd_sound_sampleplayer_new()
 	if ptr != nil {
-		return &SamplePlayer{ptr: ptr}
+		player := &SamplePlayer{ptr: ptr}
+		runtime.SetFinalizer(player, func(p *SamplePlayer) {
+			if p.ptr != nil {
+				C.pd_sound_sampleplayer_free(p.ptr)
+			}
+		})
+		return player
 	}
 	return nil
 }
@@ -664,7 +697,13 @@ func (s *Sound) SetSamplePlayerVolume(player *SamplePlayer, left, right float32)
 func (s *Sound) NewAudioSample(length int) *AudioSample {
 	ptr := C.pd_sound_sample_new(C.int(length))
 	if ptr != nil {
-		return &AudioSample{ptr: ptr}
+		sample := &AudioSample{ptr: ptr}
+		runtime.SetFinalizer(sample, func(a *AudioSample) {
+			if a.ptr != nil {
+				C.pd_sound_sample_free(a.ptr)
+			}
+		})
+		return sample
 	}
 	return nil
 }
@@ -675,7 +714,13 @@ func (s *Sound) LoadAudioSample(path string) *AudioSample {
 	copy(cpath, path)
 	ptr := C.pd_sound_sample_load((*C.char)(unsafe.Pointer(&cpath[0])))
 	if ptr != nil {
-		return &AudioSample{ptr: ptr}
+		sample := &AudioSample{ptr: ptr}
+		runtime.SetFinalizer(sample, func(a *AudioSample) {
+			if a.ptr != nil {
+				C.pd_sound_sample_free(a.ptr)
+			}
+		})
+		return sample
 	}
 	return nil
 }

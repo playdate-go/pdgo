@@ -23,6 +23,11 @@ void pd_sys_setAutoLockDisabled(int disabled);
 int pd_sys_getLanguage(void);
 float pd_sys_getBatteryPercentage(void);
 float pd_sys_getBatteryVoltage(void);
+
+// Realloc debug functions
+void pd_sys_setReallocDebug(int enabled);
+int pd_sys_getReallocStats(int* count, unsigned long* total_bytes, int* free_count);
+void pd_sys_resetReallocStats(void);
 void pd_sys_setMenuImage(void* bitmap, int xOffset);
 */
 import "C"
@@ -141,6 +146,45 @@ func (s *System) GetBatteryVoltage() float32 {
 // SetUpdateCallback sets the update callback function
 func (s *System) SetUpdateCallback(callback func() int) {
 	SetUpdateCallback(callback)
+}
+
+// ReallocStats holds memory allocation statistics
+type ReallocStats struct {
+	Count      int    // Total number of realloc calls
+	TotalBytes uint64 // Total bytes allocated (malloc only, not realloc)
+	FreeCount  int    // Number of free calls
+}
+
+// SetReallocDebug enables or disables realloc debug logging.
+//
+// Deprecated: Use pd.Memory.SetReallocDebug instead.
+func (s *System) SetReallocDebug(enabled bool) {
+	var flag C.int
+	if enabled {
+		flag = 1
+	}
+	C.pd_sys_setReallocDebug(flag)
+}
+
+// GetReallocStats returns current realloc statistics and whether debug is enabled.
+//
+// Deprecated: Use pd.Memory.GetReallocStats instead.
+func (s *System) GetReallocStats() (stats ReallocStats, debugEnabled bool) {
+	var count C.int
+	var totalBytes C.ulong
+	var freeCount C.int
+	debugEnabled = C.pd_sys_getReallocStats(&count, &totalBytes, &freeCount) != 0
+	stats.Count = int(count)
+	stats.TotalBytes = uint64(totalBytes)
+	stats.FreeCount = int(freeCount)
+	return
+}
+
+// ResetReallocStats resets the realloc statistics counters
+//
+// Deprecated: Use pd.Memory.ResetStats instead.
+func (s *System) ResetReallocStats() {
+	C.pd_sys_resetReallocStats()
 }
 
 var eventCallbackFn func(event PDSystemEvent, arg uint32)

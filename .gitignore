@@ -2,13 +2,6 @@
 
 *.pdx
 
-examples/spritegame/Source/images
-examples/bach_midi/Source/bach.mid
-examples/bach_midi/Source/piano.wav
-examples/tilemap/Source/font-table-20-20.png
-examples/particles/Source/font
-examples/particles/Source/images
-
 *.sum
 
 pdex.h
@@ -19,3 +12,7 @@ cmd/pdgoc/pdgoc
 
 main_cgo.go
 pdxinfo
+
+# tool-local state
+.serena/
+.claude/

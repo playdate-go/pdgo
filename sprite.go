@@ -92,7 +92,10 @@ void pd_sprite_setDrawFunction(void* sprite);
 void pd_sprite_setCollisionResponseFunction(void* sprite);
 */
 import "C"
-import "unsafe"
+import (
+	"runtime"
+	"unsafe"
+)
 
 // Sprite represents a sprite object
 type Sprite struct {
@@ -123,7 +126,14 @@ func newSprite() *SpriteAPI {
 func (s *SpriteAPI) NewSprite() *LCDSprite {
 	ptr := C.pd_sprite_new()
 	if ptr != nil {
-		return &LCDSprite{ptr: ptr}
+		sprite := &LCDSprite{ptr: ptr}
+		runtime.SetFinalizer(sprite, func(sp *LCDSprite) {
+			if sp.ptr != nil {
+				unregisterSpriteCallbacks(sp.ptr)
+				C.pd_sprite_free(sp.ptr)
+			}
+		})
+		return sprite
 	}
 	return nil
 }

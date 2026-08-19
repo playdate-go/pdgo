@@ -7,6 +7,8 @@ SECTIONS
         KEEP(*(.text.eventHandler))
         KEEP(*(.text.updateCallback))
         KEEP(*(.text.runtime_init))
+        KEEP(*(.text.tinygo_scanCurrentStack))
+        KEEP(*(.text.tinygo_scanstack))
         *(.text) *(.text.*) *(.rodata) *(.rodata.*)
         KEEP(*(.init)) KEEP(*(.fini))
         . = ALIGN(4);

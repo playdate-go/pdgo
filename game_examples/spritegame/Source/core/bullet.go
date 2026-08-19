@@ -67,6 +67,6 @@ func (b *Bullet) Kill() {
 		b.alive = false
 		pd := b.game.pd
 		pd.Sprite.RemoveSprite(b.sprite)
-		pd.Sprite.FreeSprite(b.sprite)
+		// Sprite freed by GC finalizer
 	}
 }

@@ -54,6 +54,16 @@ Write-Host "Step 1: Compiling C runtime..."
 
 & "arm-none-eabi-ar" rcs "$BuildDirAbs/libpd.a" "$BuildDirAbs/pd_runtime.o"
 
+# Step 1b: Assemble TinyGo runtime assembly (asm_arm.S).
+# TinyGo only assembles extra-files (asm_arm.S) when it links an executable
+# itself; with `-o game.o` it emits just the Go module and returns early.
+# tinygo_scanCurrentStack (GC stack scanning) and tinygo_longjmp (recover)
+# live in asm_arm.S, so assemble it here and link it in Step 5.
+# The installed asm_arm.S is the pdgo replacement (installed by the TinyGo
+# setup step): it restores r4-r11 and keeps SP 8-byte aligned, and is
+# 16-bit-Thumb-only so GNU as can assemble it without workarounds.
+& "arm-none-eabi-gcc" @McFlags -c (Join-Path $TinyGoDir "src/runtime/asm_arm.S") -o "$BuildDirAbs/asm_arm.o"
+
 # Step 2: Create linker script and TinyGo target
 Write-Host "Step 2: Configuring build..."
 $targetsDir = Join-Path $TinyGoDir "targets"
@@ -97,7 +107,7 @@ Write-Host "Step 4: Compiling SDK setup..."
 
 # Step 5: Link everything
 Write-Host "Step 5: Linking..."
-& "arm-none-eabi-gcc" @McFlags "-T$SdkPath/C_API/buildsupport/link_map.ld" "-Wl,--gc-sections" "-Wl,--emit-relocs" "-nostartfiles" "$BuildDirAbs/setup.o" "$BuildDirAbs/pd_runtime.o" "$BuildDirAbs/game.o" -o "$BuildDirAbs/pdex.elf"
+& "arm-none-eabi-gcc" @McFlags "-T$SdkPath/C_API/buildsupport/link_map.ld" "-Wl,--gc-sections" "-Wl,--emit-relocs" "-nostartfiles" "$BuildDirAbs/setup.o" "$BuildDirAbs/pd_runtime.o" "$BuildDirAbs/game.o" "$BuildDirAbs/asm_arm.o" -o "$BuildDirAbs/pdex.elf"
 
 Copy-Item "$BuildDirAbs/pdex.elf" -Destination "$GoSrcDirAbs/"
 

@@ -73,7 +73,10 @@ void pd_gfx_display(void);
 void* pd_gfx_getDisplayBufferBitmap(void);
 */
 import "C"
-import "unsafe"
+import (
+	"runtime"
+	"unsafe"
+)
 
 // LCDBitmap represents a bitmap image
 type LCDBitmap struct {
@@ -183,10 +186,18 @@ func (g *Graphics) FillEllipse(x, y, width, height int, startAngle, endAngle flo
 // ============== Text ==============
 
 // DrawText draws text at the given position
+// Note: This function allocates memory. For hot paths, use DrawTextBytes instead.
 func (g *Graphics) DrawText(text string, x, y int) int {
 	cstr := make([]byte, len(text)+1)
 	copy(cstr, text)
 	return int(C.pd_gfx_drawText((*C.char)(unsafe.Pointer(&cstr[0])), C.int(len(text)), C.int(UTF8Encoding), C.int(x), C.int(y)))
+}
+
+// DrawTextBytes draws text from a pre-allocated byte buffer (null-terminated).
+// Use this in hot paths to avoid memory allocation. The buffer must be
+// null-terminated and len should not include the null terminator.
+func (g *Graphics) DrawTextBytes(buf []byte, len int, x, y int) int {
+	return int(C.pd_gfx_drawText((*C.char)(unsafe.Pointer(&buf[0])), C.int(len), C.int(UTF8Encoding), C.int(x), C.int(y)))
 }
 
 // GetTextWidth returns the width of text
@@ -220,7 +231,13 @@ func (g *Graphics) LoadFont(path string) (*LCDFont, error) {
 	if ptr == nil {
 		return nil, &loadError{path: path}
 	}
-	return &LCDFont{ptr: ptr}, nil
+	font := &LCDFont{ptr: ptr}
+	// Note: Playdate SDK manages font lifecycle, no explicit free needed
+	// but we set a finalizer just in case for future compatibility
+	runtime.SetFinalizer(font, func(f *LCDFont) {
+		// Font is managed by SDK, no explicit free
+	})
+	return font, nil
 }
 
 // ============== Bitmap ==============
@@ -229,7 +246,13 @@ func (g *Graphics) LoadFont(path string) (*LCDFont, error) {
 func (g *Graphics) NewBitmap(width, height int, bgcolor LCDColor) *LCDBitmap {
 	ptr := C.pd_gfx_newBitmap(C.int(width), C.int(height), C.uint32_t(bgcolor))
 	if ptr != nil {
-		return &LCDBitmap{ptr: ptr}
+		bitmap := &LCDBitmap{ptr: ptr}
+		runtime.SetFinalizer(bitmap, func(b *LCDBitmap) {
+			if b.ptr != nil {
+				C.pd_gfx_freeBitmap(b.ptr)
+			}
+		})
+		return bitmap
 	}
 	return nil
 }
@@ -248,7 +271,13 @@ func (g *Graphics) LoadBitmap(path string) (*LCDBitmap, error) {
 	copy(cpath, path)
 	ptr := C.pd_gfx_loadBitmap((*C.char)(unsafe.Pointer(&cpath[0])), nil)
 	if ptr != nil {
-		return &LCDBitmap{ptr: ptr}, nil
+		bitmap := &LCDBitmap{ptr: ptr}
+		runtime.SetFinalizer(bitmap, func(b *LCDBitmap) {
+			if b.ptr != nil {
+				C.pd_gfx_freeBitmap(b.ptr)
+			}
+		})
+		return bitmap, nil
 	}
 	return nil, &loadError{path: path}
 }
@@ -258,7 +287,13 @@ func (g *Graphics) CopyBitmap(bitmap *LCDBitmap) *LCDBitmap {
 	if bitmap != nil && bitmap.ptr != nil {
 		ptr := C.pd_gfx_copyBitmap(bitmap.ptr)
 		if ptr != nil {
-			return &LCDBitmap{ptr: ptr}
+			copy := &LCDBitmap{ptr: ptr}
+			runtime.SetFinalizer(copy, func(b *LCDBitmap) {
+				if b.ptr != nil {
+					C.pd_gfx_freeBitmap(b.ptr)
+				}
+			})
+			return copy
 		}
 	}
 	return nil
@@ -328,7 +363,13 @@ func (g *Graphics) RotatedBitmap(bitmap *LCDBitmap, rotation, xscale, yscale flo
 	if bitmap != nil && bitmap.ptr != nil {
 		ptr := C.pd_gfx_rotatedBitmap(bitmap.ptr, C.float(rotation), C.float(xscale), C.float(yscale))
 		if ptr != nil {
-			return &LCDBitmap{ptr: ptr}
+			rotated := &LCDBitmap{ptr: ptr}
+			runtime.SetFinalizer(rotated, func(b *LCDBitmap) {
+				if b.ptr != nil {
+					C.pd_gfx_freeBitmap(b.ptr)
+				}
+			})
+			return rotated
 		}
 	}
 	return nil
@@ -339,7 +380,13 @@ func (g *Graphics) GetBitmapMask(bitmap *LCDBitmap) *LCDBitmap {
 	if bitmap != nil && bitmap.ptr != nil {
 		ptr := C.pd_gfx_getBitmapMask(bitmap.ptr)
 		if ptr != nil {
-			return &LCDBitmap{ptr: ptr}
+			mask := &LCDBitmap{ptr: ptr}
+			runtime.SetFinalizer(mask, func(b *LCDBitmap) {
+				if b.ptr != nil {
+					C.pd_gfx_freeBitmap(b.ptr)
+				}
+			})
+			return mask
 		}
 	}
 	return nil
@@ -385,7 +432,13 @@ func (g *Graphics) SetColorToPattern(bitmap *LCDBitmap, x, y int) LCDColor {
 func (g *Graphics) NewBitmapTable(count, width, height int) *LCDBitmapTable {
 	ptr := C.pd_gfx_newBitmapTable(C.int(count), C.int(width), C.int(height))
 	if ptr != nil {
-		return &LCDBitmapTable{ptr: ptr}
+		table := &LCDBitmapTable{ptr: ptr}
+		runtime.SetFinalizer(table, func(t *LCDBitmapTable) {
+			if t.ptr != nil {
+				C.pd_gfx_freeBitmapTable(t.ptr)
+			}
+		})
+		return table
 	}
 	return nil
 }
@@ -404,7 +457,13 @@ func (g *Graphics) LoadBitmapTable(path string) (*LCDBitmapTable, error) {
 	copy(cpath, path)
 	ptr := C.pd_gfx_loadBitmapTable((*C.char)(unsafe.Pointer(&cpath[0])), nil)
 	if ptr != nil {
-		return &LCDBitmapTable{ptr: ptr}, nil
+		table := &LCDBitmapTable{ptr: ptr}
+		runtime.SetFinalizer(table, func(t *LCDBitmapTable) {
+			if t.ptr != nil {
+				C.pd_gfx_freeBitmapTable(t.ptr)
+			}
+		})
+		return table, nil
 	}
 	return nil, &loadError{path: path}
 }
@@ -431,7 +490,13 @@ type LCDTileMap struct {
 func (g *Graphics) NewTilemap() *LCDTileMap {
 	ptr := C.pd_gfx_tilemap_new()
 	if ptr != nil {
-		return &LCDTileMap{ptr: ptr}
+		tilemap := &LCDTileMap{ptr: ptr}
+		runtime.SetFinalizer(tilemap, func(t *LCDTileMap) {
+			if t.ptr != nil {
+				C.pd_gfx_tilemap_free(t.ptr)
+			}
+		})
+		return tilemap
 	}
 	return nil
 }

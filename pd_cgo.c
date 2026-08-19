@@ -22,14 +22,11 @@ void DisableInterrupts(void) {
     __asm__ volatile ("cpsid i" ::: "memory");
 }
 
-// ============== Panic support stub ==============
-// TinyGo needs this for panic/recover. If panic actually happens, device hangs.
-// This allows code with potential panics (map, slice bounds) to compile.
-void tinygo_longjmp(void* buf) {
-    // Panic occurred - halt the device
-    pd->system->logToConsole("PANIC: tinygo_longjmp called - halting");
-    while(1) {} // Infinite loop
-}
+// Note: tinygo_longjmp is NOT defined here. It comes from TinyGo's stock
+// src/runtime/asm_arm.S, which the device build scripts assemble and link
+// (TinyGo skips extra-file assembly for `-o game.o` builds). The real
+// implementation makes recover() work; a halting stub here would freeze
+// any panicking finalizer instead of recovering.
 
 // ============== ARM unwind / libc stubs ==============
 // libgcc unwind and newlib-nano libc reference these on bare-metal ARM.
@@ -59,9 +56,36 @@ int _getpid(void) {
 // ============== TinyGo Runtime Support ==============
 // Only needed for TinyGo device builds
 
+// Debug tracking for realloc (device only)
+static int _realloc_debug_enabled = 0;
+static int _realloc_call_count = 0;
+static size_t _realloc_total_bytes = 0;
+static int _realloc_free_count = 0;
+
 void* runtime__cgo_pd_realloc(void* ptr, size_t size) __asm__("runtime._cgo_pd_realloc");
 void* runtime__cgo_pd_realloc(void* ptr, size_t size) {
-    return pd ? pd->system->realloc(ptr, size) : NULL;
+    _realloc_call_count++;
+
+    void* result = pd ? pd->system->realloc(ptr, size) : NULL;
+
+    if (_realloc_debug_enabled && pd) {
+        const char* op = "alloc";
+        if (ptr == NULL && size > 0) {
+            op = "malloc";
+            _realloc_total_bytes += size;
+        } else if (size == 0 && ptr != NULL) {
+            op = "free";
+            _realloc_free_count++;
+        } else if (ptr != NULL && size > 0) {
+            op = "realloc";
+        }
+
+        pd->system->logToConsole("[C] realloc#%d %s: ptr=0x%08x size=%u result=0x%08x",
+            _realloc_call_count, op,
+            (unsigned int)ptr, (unsigned int)size, (unsigned int)result);
+    }
+
+    return result;
 }
 
 uint32_t runtime__cgo_pd_getCurrentTimeMS(void) __asm__("runtime._cgo_pd_getCurrentTimeMS");
@@ -73,9 +97,49 @@ void runtime__cgo_pd_logToConsole(const char* msg) __asm__("runtime._cgo_pd_logT
 void runtime__cgo_pd_logToConsole(const char* msg) {
     if (pd) pd->system->logToConsole("%s", msg);
 }
+
 #endif // TARGET_PLAYDATE
 
 // ============== System API ==============
+
+// Realloc debug functions - available for both simulator and device
+// Note: only tracks meaningful stats on device builds
+
+void pd_sys_setReallocDebug(int enabled) {
+#ifdef TARGET_PLAYDATE
+    _realloc_debug_enabled = enabled;
+    if (enabled && pd) {
+        pd->system->logToConsole("[C] realloc debug ENABLED");
+    }
+#else
+    (void)enabled;
+    if (pd) {
+        pd->system->logToConsole("[C] realloc debug not available on simulator");
+    }
+#endif
+}
+
+int pd_sys_getReallocStats(int* count, unsigned long* total_bytes, int* free_count) {
+#ifdef TARGET_PLAYDATE
+    if (count) *count = _realloc_call_count;
+    if (total_bytes) *total_bytes = (unsigned long)_realloc_total_bytes;
+    if (free_count) *free_count = _realloc_free_count;
+    return _realloc_debug_enabled;
+#else
+    if (count) *count = 0;
+    if (total_bytes) *total_bytes = 0;
+    if (free_count) *free_count = 0;
+    return 0;
+#endif
+}
+
+void pd_sys_resetReallocStats(void) {
+#ifdef TARGET_PLAYDATE
+    _realloc_call_count = 0;
+    _realloc_total_bytes = 0;
+    _realloc_free_count = 0;
+#endif
+}
 
 void pd_sys_log(const char* msg) {
     if (pd) pd->system->logToConsole("%s", msg);

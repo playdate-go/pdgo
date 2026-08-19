@@ -18,7 +18,10 @@ int pd_file_unlink(const char* path, int recursive);
 int pd_file_rename(const char* from, const char* to);
 */
 import "C"
-import "unsafe"
+import (
+	"runtime"
+	"unsafe"
+)
 
 // SDFile represents an open file
 type SDFile struct {
@@ -55,7 +58,13 @@ func (f *File) Open(path string, mode FileOptions) (*SDFile, error) {
 	copy(cpath, path)
 	ptr := C.pd_file_open((*C.char)(unsafe.Pointer(&cpath[0])), C.int(mode))
 	if ptr != nil {
-		return &SDFile{ptr: ptr}, nil
+		file := &SDFile{ptr: ptr}
+		runtime.SetFinalizer(file, func(sf *SDFile) {
+			if sf.ptr != nil {
+				C.pd_file_close(sf.ptr)
+			}
+		})
+		return file, nil
 	}
 	return nil, &fileError{op: "open", path: path}
 }

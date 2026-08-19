@@ -83,7 +83,7 @@ func initGame() {
 
 	handler := &JSONHandler{path: ""}
 	err = pd.JSON.DecodeFile(file, handler)
-	pd.File.Close(file)
+	// File closed by GC finalizer
 
 	if err != nil {
 		pd.System.LogToConsole("Error decoding JSON")

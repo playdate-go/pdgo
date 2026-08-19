@@ -23,6 +23,7 @@ type PlaydateAPI struct {
 	JSON        *JSON
 	Scoreboards *Scoreboards
 	Network     *Network
+	Memory      *Memory
 }
 
 var api *PlaydateAPI
@@ -48,6 +49,7 @@ func Init(playdateAPI unsafe.Pointer) *PlaydateAPI {
 	api.JSON = newJSON()
 	api.Scoreboards = newScoreboards()
 	api.Network = newNetwork()
+	api.Memory = &Memory{}
 
 	return api
 }

@@ -18,7 +18,7 @@ func initGame() {
 
 	// Parse JSON into tree
 	root, err := pd.JSON.ParseFile(file)
-	pd.File.Close(file)
+	// File closed by GC finalizer
 
 	if err != nil {
 		pd.System.LogToConsole("Error parsing JSON")
