@@ -13,6 +13,7 @@ We are featured in **Cranko!** magazine - https://cranknockout.com/
 - [Overview](#overview)
 - [Quick Install](#quick-install)
 - [CLI Usage](#cli-usage)
+- [pdgocd: Crash Log Analyzer](#pdgocd-crash-log-analyzer)
 - [Internals](#internals)
 - [Conservative Mark-Sweep GC](#conservative-mark-sweep-gc)
 - [Why Not Go But TinyGo](#why-not-go-but-tinygo)
@@ -205,6 +206,85 @@ func update() int {
 func main() {}
 
 ```
+
+## pdgocd: Crash Log Analyzer
+
+When a game crashes on the device, Playdate dumps raw ARM state: registers, fault status bits, and bare addresses in the `0x9xxxxxxx` flash window. **`pdgocd`** turns that dump into a decoded fault cause and Go function names.
+
+It is a pure Go tool in this repo (no cgo, runs on macOS/Linux/Windows):
+
+```bash
+go install github.com/playdate-go/pdgo/cmd/pdgocd@latest   # once merged to main
+# or, from a checkout:
+go install ./cmd/pdgocd
+```
+
+### Passing input
+
+The crash log — exactly one of:
+
+| How | Example |
+|-----|---------|
+| File argument | `pdgocd crashlog.txt` |
+| Raw text flag | `pdgocd -log "crash at ... r0: ..."` |
+| Stdin | `pbpaste \| pdgocd` |
+
+The ELF — a flag or a second positional argument (either order works, so `pdgocd SpriteGame.pdx crashlog.txt` and `pdgocd crashlog.txt SpriteGame.pdx` are the same):
+
+| Source | Resolution |
+|--------|-----------|
+| `-e build/pdex.elf` | Used directly |
+| `.pdx` bundle (e.g. `SpriteGame.pdx`) | Raw `pdex.bin` inside the bundle; otherwise `build/pdex.elf` from the game dir beside it |
+| Game directory | `pdex.bin`, `build/pdex.elf`, `pdex.elf`, walking up parent dirs |
+
+With no ELF argument at all, pdgocd walks up from the current directory looking for the same candidates.
+
+Extra flags: `-d` disassembles ~12 instructions around the faulting pc via `arm-none-eabi-objdump`.
+
+### What you get
+
+- **Decoded fault cause** — CFSR/HFSR/UFSR/BFSR bits (`UNDEFINSTR`, `IBUSERR`, `PRECISERR`, ...), the faulting address named from `bfar`/`mmfar` when valid.
+- **Registers mapped to Go code** — flash addresses become ELF offsets and resolve through `arm-none-eabi-addr2line` (inline frames included), with a symbol-table fallback marked `(nearest symbol)`. SRAM and ARM-system-space values are annotated.
+- **Crash hints** — e.g. `pc == r1` means an indirect call (`blx r1`) through that register; pc landing in a data section means a non-function value was called as code.
+- **Wrong-ELF warnings** — addresses past this ELF's image end or all-fallback resolution mean the ELF is from a different game/build than the crash; a rebuild newer than the crash warns about symbol drift.
+- **Scriptable exit codes** — `0` analyzed, `2` no crash found, `3` no usable ELF.
+
+Example output (real run against a spritegame device ELF):
+
+```text
+Crash #1 - 2026/08/19 15:31:02
+  build: 415038e2-3.0.5-release.202175-gitlab-runner
+  ELF:   game_examples/spritegame/build/pdex.elf (modified 2026-08-19 15:14)
+
+  usage fault: undefined instruction executed (UFSR.UNDEFINSTR)
+  escalated to HardFault (HFSR.FORCED)
+  psr 600f0000: ARM state (T-bit clear — attempted non-Thumb execution), thread mode
+
+////////////////////////////////////////////////////////////
+  r0     00000005
+  r1     90003600 -> 03600  main.update
+  r2     00000000
+  r3     00000000
+  r12    00000000
+  lr     90002e8e -> 02e8e  github.com/playdate-go/pdgo.CallUpdateCallback (api.go:74)  (return address: caller)
+  pc     90003600 -> 03600  main.update
+  psr    600f0000
+  cfsr   00010000
+  hfsr   40000000
+  mmfar  00000000
+  bfar   00000000
+  rcccsr 00000000
+////////////////////////////////////////////////////////////
+  ! pc == r1 - indirect call (blx r1) through that register
+  heap allocated: 146144 bytes
+```
+
+### Notes
+
+>[!IMPORTANT]
+> The `pdex.bin` inside a shipped `.pdx` bundle is pdc-encrypted and cannot be symbolized — pdgocd detects this and tells you. You need the `build/pdex.elf` from the **same build that crashed**: `pdgoc -device` cleans up `build/` after a successful build, so keep your own copy of the ELF when you ship a build, or produce one with `cmd/pdgoc/scripts/DeviceBuildScriptUnix.sh`, which keeps `build/pdex.elf`.
+
+`arm-none-eabi-addr2line` comes from the same `gcc-arm-none-eabi` toolchain that device builds require (see [Quick Install](#quick-install)). Without it on PATH, pdgocd still works via ELF symbol-table lookup.
 
 # Internals
 
