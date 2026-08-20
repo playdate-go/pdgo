@@ -4,6 +4,7 @@
 .DESCRIPTION
     Installs everything needed to build Go games for Playdate:
       - pdgoc (build tool)
+      - pdgocd (crash-log symbolizer)
       - TinyGo with Playdate support (for device builds)
 .EXAMPLE
     .\install.ps1
@@ -12,7 +13,7 @@
 .PARAMETER CleanInstall
     Remove all previously installed PdGo components before installing fresh:
       - ~/tinygo-playdate/ directory
-      - pdgoc.exe from GOBIN
+      - pdgoc.exe and pdgocd.exe from GOBIN
 #>
 
 param(
@@ -51,6 +52,13 @@ if ($CleanInstall) {
         Write-Host "  Removing pdgoc: $pdgocExe"
         Remove-Item -Force $pdgocExe
         $removed += "pdgoc ($pdgocExe)"
+    }
+
+    $pdgocdExe = Join-Path $goBin 'pdgocd.exe'
+    if (Test-Path $pdgocdExe) {
+        Write-Host "  Removing pdgocd: $pdgocdExe"
+        Remove-Item -Force $pdgocdExe
+        $removed += "pdgocd ($pdgocdExe)"
     }
 
     # Remove dependencies installed by the script via Scoop
@@ -300,7 +308,7 @@ if ($goVersion -ne $requiredGoVersion) {
 # Step 2: Install pdgoc
 # ============================================================================
 Write-Host ''
-Write-Host '[2/4] Installing pdgoc...' -ForegroundColor Yellow
+Write-Host '[2/4] Installing pdgoc and pdgocd...' -ForegroundColor Yellow
 
 $goPath = go env GOPATH
 $goBin = if ($env:GOBIN) { $env:GOBIN } else { Join-Path $goPath 'bin' }
@@ -309,8 +317,17 @@ if (-not (Test-Path $goBin)) {
 }
 
 if ($isLocalBuild) {
-    Write-Host 'Installing pdgoc from local directory'
+    Write-Host 'Installing pdgoc and pdgocd from local directory'
     $originalLocation = (Get-Location).Path
+
+    # pdgocd lives in the root module (stdlib-only, no tidy needed)
+    go build -o (Join-Path $goBin 'pdgocd.exe') .\cmd\pdgocd
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host 'ERROR: Failed to build pdgocd' -ForegroundColor Red
+        exit 1
+    }
+    Write-Host "  pdgocd installed at: $goBin\pdgocd.exe" -ForegroundColor Green
+
     Set-Location $localRoot\cmd\pdgoc
 
     Write-Host '  Downloading Go dependencies...'
@@ -345,6 +362,18 @@ if ($isLocalBuild) {
         $pdgocSourceDir = Join-Path $extractedDir 'cmd\pdgoc'
 
         $originalLocation = (Get-Location).Path
+
+        # pdgocd lives in the root module (stdlib-only, no tidy needed)
+        Set-Location $extractedDir
+        Write-Host '  Building pdgocd...'
+        go build -o (Join-Path $goBin 'pdgocd.exe') .\cmd\pdgocd
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host 'ERROR: Failed to build pdgocd' -ForegroundColor Red
+            Set-Location $originalLocation
+            exit 1
+        }
+        Write-Host "  pdgocd installed at: $goBin\pdgocd.exe" -ForegroundColor Green
+
         Set-Location $pdgocSourceDir
 
         Write-Host '  Downloading Go dependencies...'
@@ -515,6 +544,7 @@ Write-Host '  Installation Complete!' -ForegroundColor Green
 Write-Host ''
 Write-Host 'Installed:'
 Write-Host "  pdgoc:  $goBin\pdgoc.exe" -ForegroundColor Green
+Write-Host "  pdgocd: $goBin\pdgocd.exe" -ForegroundColor Green
 if (-not $skipTinyGo) {
     Write-Host "  TinyGo: $tinygoBinDir\tinygo.exe" -ForegroundColor Green
 }
@@ -534,6 +564,10 @@ if (-not $skipTinyGo) {
     Write-Host "  pdgoc -device -deploy -name MyGame -author Me -desc 'Game' -bundle-id com.me.game -version 1.0 -build-number 1"
     Write-Host ''
 }
+
+Write-Host "  # Symbolize a device crash log"
+Write-Host "  pdgocd -e build\pdex.elf crashlog.txt"
+Write-Host ''
 
 Write-Host 'Documentation: https://github.com/playdate-go/pdgo'
 Write-Host ''

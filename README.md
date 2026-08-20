@@ -68,6 +68,7 @@ Log out and login back to ensure paths are properly updated.
 This installs **everything** you need:
 - Dependencies
 - `pdgoc` - the build tool
+- `pdgocd` - the crash-log symbolizer
 - Prebuilt`TinyGo` binary with custom Playdate support (for device builds)
 - Configures your PATH automatically
 
@@ -211,11 +212,9 @@ func main() {}
 
 When a game crashes on the device, Playdate dumps raw ARM state: registers, fault status bits, and bare addresses in the `0x9xxxxxxx` flash window. **`pdgocd`** turns that dump into a decoded fault cause and Go function names.
 
-It is a pure Go tool in this repo (no cgo, runs on macOS/Linux/Windows):
+It is a pure Go tool in this repo (no cgo, runs on macOS/Linux/Windows), installed automatically alongside `pdgoc` by `install.sh` / `install.ps1`. To get it manually from a checkout:
 
 ```bash
-go install github.com/playdate-go/pdgo/cmd/pdgocd@latest   # once merged to main
-# or, from a checkout:
 go install ./cmd/pdgocd
 ```
 

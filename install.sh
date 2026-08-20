@@ -4,6 +4,7 @@
 #
 # Installs everything needed to build Go games for Playdate:
 #   - pdgoc (build tool)
+#   - pdgocd (crash-log symbolizer)
 #   - TinyGo with Playdate support (for device builds)
 #
 # Usage:
@@ -150,7 +151,10 @@ echo -e "${GREEN}All dependencies OK${NC}"
 # Step 2: Install pdgoc
 # ============================================================================
 echo ""
-echo -e "${YELLOW}[2/4] Installing pdgoc...${NC}"
+echo -e "${YELLOW}[2/4] Installing pdgoc and pdgocd...${NC}"
+
+GOBIN="${GOBIN:-$(go env GOPATH)/bin}"
+mkdir -p "$GOBIN"
 
 # Detect if running from pdgo repo root
 if [ -d "cmd/pdgoc" ] && [ -f "go.mod" ]; then
@@ -166,13 +170,14 @@ if [ -d "cmd/pdgoc" ] && [ -f "go.mod" ]; then
     echo "    Commit:  $COMMIT"
     echo "    Date:    $DATE"
 
+    # pdgocd lives in the root module (stdlib-only, no tidy needed)
+    go build -o "$GOBIN/pdgocd" ./cmd/pdgocd
+    echo -e "  pdgocd installed at: ${GREEN}$GOBIN/pdgocd${NC}"
+
     cd cmd/pdgoc
 
     echo "  Downloading Go dependencies..."
     go mod tidy
-
-    GOBIN="${GOBIN:-$(go env GOPATH)/bin}"
-    mkdir -p "$GOBIN"
 
     # Build with ldflags to inject version information
     go build -ldflags="-X 'main.Version=$VERSION' -X 'main.Commit=$COMMIT' -X 'main.Date=$DATE'" -o "$GOBIN/pdgoc" .
@@ -212,7 +217,13 @@ else
         SOURCE_DIR="$BUILD_DIR/pdgo-main"
     fi
 
-    cd "$SOURCE_DIR/cmd/pdgoc"
+    cd "$SOURCE_DIR"
+
+    echo "  Building pdgocd..."
+    go build -o "$GOBIN/pdgocd" ./cmd/pdgocd
+    echo -e "  pdgocd installed at: ${GREEN}$GOBIN/pdgocd${NC}"
+
+    cd cmd/pdgoc
 
     echo "  Downloading Go dependencies..."
     go mod tidy
@@ -221,9 +232,6 @@ else
     echo "    Version: $VERSION"
     echo "    Commit:  $COMMIT"
     echo "    Date:    $DATE"
-
-    GOBIN="${GOBIN:-$(go env GOPATH)/bin}"
-    mkdir -p "$GOBIN"
 
     # Build with ldflags to inject version information
     go build -ldflags="-X 'main.Version=$VERSION' -X 'main.Commit=$COMMIT' -X 'main.Date=$DATE'" -o "$GOBIN/pdgoc" .
@@ -387,6 +395,7 @@ echo -e "${GREEN}╚════════════════════
 echo ""
 echo "Installed:"
 echo -e "  pdgoc:  ${GREEN}$GOBIN/pdgoc${NC}"
+echo -e "  pdgocd: ${GREEN}$GOBIN/pdgocd${NC}"
 if [ "$SKIP_TINYGO" != "1" ]; then
 echo -e "  TinyGo: ${GREEN}$TINYGO_DIR/bin/tinygo${NC}"
 fi
@@ -407,5 +416,8 @@ echo "  pdgoc -device -deploy -name MyGame -author Me -desc 'Game' \\"
 echo "        -bundle-id com.me.game -version 1.0 -build-number 1"
 echo ""
 fi
+echo "  # Symbolize a device crash log"
+echo "  pdgocd -e build/pdex.elf crashlog.txt"
+echo ""
 echo "Documentation: https://github.com/playdate-go/pdgo"
 echo ""
