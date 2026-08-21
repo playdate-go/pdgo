@@ -255,13 +255,13 @@ Example (real run against a spritegame device ELF):
 Tool Input:
 
 ```text
- pdgocd -e game_examples/spritegame/build/pdex.elf -log "--- crash at 2026/08/18 14:23:52---
+ pdgocd -e game_examples/spritegame/build/pdex.elf -log "--- crash at 2026/08/18 17:08:08---
 build:415038e2-3.0.5-release.202175-gitlab-runner
-   r0:90037e78    r1:90005150     r2:90005150    r3: 20009ac8
-  r12:20009b48    lr:90001795     pc:90005150   psr: 600f0000
- cfsr:00020000  hfsr:40000000  mmfar:00000000  bfar: 00000000
+   r0:00000088    r1:00000000     r2:00000000    r3: 00000000
+  r12:00000000    lr:900042c9     pc:900042ce   psr: 01070000
+ cfsr:00000082  hfsr:00000000  mmfar:00000088  bfar: 00000088
 rcccsr:00000000
-heap allocated: 231392
+heap allocated: 181152
 Lua totalbytes=0 GCdebt=0 GCestimate=0 stacksize=0"
 
 ```
@@ -269,33 +269,34 @@ Lua totalbytes=0 GCdebt=0 GCestimate=0 stacksize=0"
 Tool Output:
 
 ```text
-Crash #1 - 2026/08/18 14:23:52
+Crash #1 - 2026/08/18 17:08:08
   build: 415038e2-3.0.5-release.202175-gitlab-runner
-  ELF:   game_examples/spritegame/build/pdex.elf (modified 2026-08-21 08:12)
+  ELF:   /Users/laudamus/projects/own/pdgo/game_examples/spritegame/build/pdex.elf (modified 2026-08-21 08:12)
   WARNING: ELF is newer than the crash - symbols may have drifted
 
-  usage fault: invalid state: branch to a non-Thumb (even) address (UFSR.INVSTATE)
-  escalated to HardFault (HFSR.FORCED)
-  psr 600f0000: ARM state (T-bit clear — attempted non-Thumb execution), thread mode
+  memmanage fault: data access violation (MMFSR.DACCVIOL)
+  faulting address mmfar=0x00000088
+  psr 01070000: Thumb, thread mode
 
 ////////////////////////////////////////////////////////////
-  r0     90037e78  (flash: past this ELF's image - SDK heap, or a different build)
-  r1     90005150 -> 05150  __aeabi_memcpy8
-  r2     90005150 -> 05150  __aeabi_memcpy8
-  r3     20009ac8  (SRAM: globals/stack)
-  r12    20009b48  (SRAM: globals/stack)
-  lr     90001795 -> 01795  runtime.GC (/Users/laudamus/tinygo-playdate/src/runtime/gc_playdate.go:337)  (return address: caller)
-  pc     90005150 -> 05150  __aeabi_memcpy8
-  psr    600f0000
-  cfsr   00020000
-  hfsr   40000000
-  mmfar  00000000
-  bfar   00000000
+  r0     00000088
+  r1     00000000
+  r2     00000000
+  r3     00000000
+  r12    00000000
+  lr     900042c9 -> 042c9  spritegame/core.NewBackground (/Users/laudamus/projects/own/pdgo/game_examples/spritegame/Source/core/background.go:37) 
+  [inlined] (*spritegame/core.Game).Setup (/Users/laudamus/projects/own/pdgo/game_examples/spritegame/Source/core/game.go:70) 
+  [inlined] main.initGame (/Users/laudamus/projects/own/pdgo/game_examples/spritegame/Source/main.go:20) 
+  [inlined] go_init (/Users/laudamus/projects/own/pdgo/game_examples/spritegame/Source/main_tinygo.go:15)  (return address: caller)
+  pc     900042ce -> 042ce  go_init [inlined] spritegame/core.NewBackground (/Users/laudamus/projects/own/pdgo/game_examples/spritegame/Source/core/background.go:38) [inlined] (*spritegame/core.Game).Setup (/Users/laudamus/projects/own/pdgo/game_examples/spritegame/Source/core/game.go:70) [inlined] main.initGame (/Users/laudamus/projects/own/pdgo/game_examples/spritegame/Source/main.go:20) [inlined] go_init (/Users/laudamus/projects/own/pdgo/game_examples/spritegame/Source/main_tinygo.go:15)
+  psr    01070000
+  cfsr   00000082
+  hfsr   00000000
+  mmfar  00000088
+  bfar   00000088
   rcccsr 00000000
 ////////////////////////////////////////////////////////////
-  ! pc == r1 - indirect call (blx r1) through that register
-  ! pc == r2 - indirect call (blx r2) through that register
-  heap allocated: 231392 bytes
+  heap allocated: 181152 bytes
 ```
 
 ### Notes
