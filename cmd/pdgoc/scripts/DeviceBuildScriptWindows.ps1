@@ -106,8 +106,11 @@ Write-Host "Step 4: Compiling SDK setup..."
 & "arm-none-eabi-gcc" @McFlags @CpFlags -O2 -DTARGET_PLAYDATE=1 -DTARGET_EXTENSION=1 "-I$SdkPath/C_API" -c "$SdkPath/C_API/buildsupport/setup.c" -o "$BuildDirAbs/setup.o"
 
 # Step 5: Link everything
+# Uses the pdgo linker script (copied to $BuildDirAbs in Step 2), not the SDK's
+# link_map.ld: the GC's root scanner needs _globals_start/_globals_end/_stack_top,
+# which the SDK script does not define.
 Write-Host "Step 5: Linking..."
-& "arm-none-eabi-gcc" @McFlags "-T$SdkPath/C_API/buildsupport/link_map.ld" "-Wl,--gc-sections" "-Wl,--emit-relocs" "-nostartfiles" "$BuildDirAbs/setup.o" "$BuildDirAbs/pd_runtime.o" "$BuildDirAbs/game.o" "$BuildDirAbs/asm_arm.o" -o "$BuildDirAbs/pdex.elf"
+& "arm-none-eabi-gcc" @McFlags "-T$BuildDirAbs/playdate.ld" "-Wl,--gc-sections" "-Wl,--emit-relocs" "-nostartfiles" "$BuildDirAbs/setup.o" "$BuildDirAbs/pd_runtime.o" "$BuildDirAbs/game.o" "$BuildDirAbs/asm_arm.o" -lm -o "$BuildDirAbs/pdex.elf"
 
 Copy-Item "$BuildDirAbs/pdex.elf" -Destination "$GoSrcDirAbs/"
 
