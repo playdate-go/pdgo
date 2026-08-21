@@ -55,6 +55,7 @@ type System struct {
 	DeviceMode bool
 	RunMode    bool
 	DeployMode bool
+	KeepBuild  bool
 	InputPath  string
 	OutputPath string
 }
@@ -95,6 +96,7 @@ func Load() (*Config, error) {
 	flag.BoolVar(&cfg.System.DeviceMode, "device", false, "build project for real Playdate console")
 	flag.BoolVar(&cfg.System.RunMode, "run", false, "build and run project in Playdate Simulator")
 	flag.BoolVar(&cfg.System.DeployMode, "deploy", false, "deploy and run on connected Playdate device (requires -device)")
+	flag.BoolVar(&cfg.System.KeepBuild, "keep", false, "keep device build directory with intermediate artifacts (build/pdex.elf for pdgocd symbolization)")
 
 	flag.StringVar(&cfg.Meta.Name, "name", "", "set pdxinfo 'name' property")
 	flag.StringVar(&cfg.Meta.Author, "author", "", "set pdxinfo 'author' property")

@@ -118,8 +118,12 @@ func (p *Processor) runBuildScript() error {
 
 	// Optionally cleanup build directory on success
 	if buildErr == nil {
-		os.RemoveAll(buildDir)
-		log.Printf("build directory has been cleaned up: %s", buildDir)
+		if p.cfg.System.KeepBuild {
+			log.Printf("build directory kept (-keep): %s (build/pdex.elf for pdgocd)", buildDir)
+		} else {
+			os.RemoveAll(buildDir)
+			log.Printf("build directory has been cleaned up: %s", buildDir)
+		}
 	}
 
 	return buildErr

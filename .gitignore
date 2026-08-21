@@ -13,6 +13,9 @@ cmd/pdgoc/pdgoc
 main_cgo.go
 pdxinfo
 
+# device build artifacts kept by 'pdgoc -keep'
+build/
+
 # tool-local state
 .serena/
 .claude/
