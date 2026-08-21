@@ -14,6 +14,7 @@ We are featured in **Cranko!** magazine - https://cranknockout.com/
 - [Quick Install](#quick-install)
 - [CLI Usage](#cli-usage)
 - [pdgocd: Crash Log Analyzer](#pdgocd-crash-log-analyzer)
+- [Memory Management](#memory-management)
 - [Internals](#internals)
 - [Conservative Mark-Sweep GC](#conservative-mark-sweep-gc)
 - [Why Not Go But TinyGo](#why-not-go-but-tinygo)
@@ -127,6 +128,7 @@ Result: `~/tinygo-playdate/bin/tinygo` - a TinyGo compiler that accepts `-target
 | `device` | Builds project for the Playdate console only                  | 
 | `run`    | Builds and runs project in the Playdate Simulator             |
 | `deploy` | Deploys and runs on connected Playdate device (requires `-device`) | 
+| `keep`    | Keeps the device `build/` directory with intermediate artifacts — notably `build/pdex.elf`, which [pdgocd](#pdgocd-crash-log-analyzer) needs to symbolize device crash logs | 
 
 
 | Flag                | Description                                     |
@@ -248,42 +250,87 @@ Extra flags: `-d` disassembles ~12 instructions around the faulting pc via `arm-
 - **Wrong-ELF warnings** — addresses past this ELF's image end or all-fallback resolution mean the ELF is from a different game/build than the crash; a rebuild newer than the crash warns about symbol drift.
 - **Scriptable exit codes** — `0` analyzed, `2` no crash found, `3` no usable ELF.
 
-Example output (real run against a spritegame device ELF):
+Example (real run against a spritegame device ELF):
+
+Tool Input:
 
 ```text
-Crash #1 - 2026/08/19 15:31:02
-  build: 415038e2-3.0.5-release.202175-gitlab-runner
-  ELF:   game_examples/spritegame/build/pdex.elf (modified 2026-08-19 15:14)
+ pdgocd -e game_examples/spritegame/build/pdex.elf -log "--- crash at 2026/08/18 14:23:52---
+build:415038e2-3.0.5-release.202175-gitlab-runner
+   r0:90037e78    r1:90005150     r2:90005150    r3: 20009ac8
+  r12:20009b48    lr:90001795     pc:90005150   psr: 600f0000
+ cfsr:00020000  hfsr:40000000  mmfar:00000000  bfar: 00000000
+rcccsr:00000000
+heap allocated: 231392
+Lua totalbytes=0 GCdebt=0 GCestimate=0 stacksize=0"
 
-  usage fault: undefined instruction executed (UFSR.UNDEFINSTR)
+```
+
+Tool Output:
+
+```text
+Crash #1 - 2026/08/18 14:23:52
+  build: 415038e2-3.0.5-release.202175-gitlab-runner
+  ELF:   game_examples/spritegame/build/pdex.elf (modified 2026-08-21 08:12)
+  WARNING: ELF is newer than the crash - symbols may have drifted
+
+  usage fault: invalid state: branch to a non-Thumb (even) address (UFSR.INVSTATE)
   escalated to HardFault (HFSR.FORCED)
   psr 600f0000: ARM state (T-bit clear — attempted non-Thumb execution), thread mode
 
 ////////////////////////////////////////////////////////////
-  r0     00000005
-  r1     90003600 -> 03600  main.update
-  r2     00000000
-  r3     00000000
-  r12    00000000
-  lr     90002e8e -> 02e8e  github.com/playdate-go/pdgo.CallUpdateCallback (api.go:74)  (return address: caller)
-  pc     90003600 -> 03600  main.update
+  r0     90037e78  (flash: past this ELF's image - SDK heap, or a different build)
+  r1     90005150 -> 05150  __aeabi_memcpy8
+  r2     90005150 -> 05150  __aeabi_memcpy8
+  r3     20009ac8  (SRAM: globals/stack)
+  r12    20009b48  (SRAM: globals/stack)
+  lr     90001795 -> 01795  runtime.GC (/Users/laudamus/tinygo-playdate/src/runtime/gc_playdate.go:337)  (return address: caller)
+  pc     90005150 -> 05150  __aeabi_memcpy8
   psr    600f0000
-  cfsr   00010000
+  cfsr   00020000
   hfsr   40000000
   mmfar  00000000
   bfar   00000000
   rcccsr 00000000
 ////////////////////////////////////////////////////////////
   ! pc == r1 - indirect call (blx r1) through that register
-  heap allocated: 146144 bytes
+  ! pc == r2 - indirect call (blx r2) through that register
+  heap allocated: 231392 bytes
 ```
 
 ### Notes
 
 >[!IMPORTANT]
-> The `pdex.bin` inside a shipped `.pdx` bundle is pdc-encrypted and cannot be symbolized — pdgocd detects this and tells you. You need the `build/pdex.elf` from the **same build that crashed**: `pdgoc -device` cleans up `build/` after a successful build, so keep your own copy of the ELF when you ship a build, or produce one with `cmd/pdgoc/scripts/DeviceBuildScriptUnix.sh`, which keeps `build/pdex.elf`.
+> The `pdex.bin` inside a shipped `.pdx` bundle is pdc-encrypted and cannot be symbolized — pdgocd detects this and tells you. You need the `build/pdex.elf` from the **same build that crashed**: `pdgoc -device` cleans up `build/` after a successful build, so build with `pdgoc -device -keep` when you want the ELF kept, or keep your own copy when you ship a build.
 
 `arm-none-eabi-addr2line` comes from the same `gcc-arm-none-eabi` toolchain that device builds require (see [Quick Install](#quick-install)). Without it on PATH, pdgocd still works via ELF symbol-table lookup.
+
+## Memory Management
+
+Every pdgo object that owns a C resource (`*LCDBitmap`, `*LCDSprite`, `*LCDFont`, `*AudioSample`, ...) is a Go wrapper around a raw C pointer with a finalizer: when the wrapper becomes unreachable, the C object is freed automatically — on device via the [custom GC](#conservative-mark-sweep-gc), in the simulator via standard Go finalizers. No manual frees needed.
+
+**The cross-heap hazard:** the Playdate SDK stores raw C pointers internally — sprites on the display list, a sprite's image, a tilemap's image table, a channel's instruments. Go's GC cannot see those references, so a wrapper that goes out of scope in your game would let its finalizer free the C object while the SDK still uses it. Symptoms: sprites vanishing from the screen mid-game, nondeterministically, in the simulator and on device alike.
+
+pdgo closes this gap with **auto-retention**: whenever a wrapper's pointer is handed into SDK state, pdgo keeps the wrapper alive in an internal registry until the matching removal API runs. You never have to think about it.
+
+| You call | Wrapper kept alive until |
+|----------|--------------------------|
+| `AddSprite(sprite)` | `RemoveSprite` / `RemoveAllSprites` / `FreeSprite` |
+| `SetImage(sprite, img)` | next `SetImage` on that sprite, or the sprite's free |
+| `SetImageTable(tmap, table)` | next `SetImageTable`, or the tilemap's free |
+| `SetSample(synth, s)` / `SetSamplePlayerSample(p, s)` | next `Set...` call on that owner, or the owner's free |
+| `AddInstrumentAsSource` / `SetInstrument` / `AddVoice` | `FreeInstrument` / `FreeSynth` |
+| `SetFont` / `SetStencilImage` / `SetColorToPattern` | the next call replacing that slot |
+| `SetMenuImage` | end of program (the menu image cannot be unset) |
+| `PushContext(target)` | the matching `PopContext` |
+
+Notes:
+
+- Explicit `Free*` calls remain available and release early; the registries are updated so nothing dangles.
+- Getter wrappers that only borrow SDK-owned objects (`GetDisplayBufferBitmap`, `GetTableBitmap`, a sprite's `GetImage`, ...) have no finalizer and never free anything.
+- Keeping your own references (e.g. in globals) is still fine — belt and braces; several examples do it.
+
+The retention registries are plain package-level maps — GC roots under both the device's conservative GC and the simulator's standard GC — with no locks (single-threaded runtime) and no reflection (TinyGo-compatible).
 
 # Internals
 
@@ -301,7 +348,7 @@ This is what makes the Playdate support strategy possible:
    ├── targets/playdate.json        ← target config (read at build time)
    ├── targets/playdate.ld          ← linker script (read at build time)
    ├── src/runtime/runtime_playdate.go  ← platform runtime: time, console output, runtime_init entry point (compiled per build)
-   └── src/runtime/gc_playdate.go       ← Playdate GC: heap alloc via _cgo_pd_realloc, leaking (no-op GC, manual free required)
+   └── src/runtime/gc_playdate.go       ← conservative mark-sweep GC (see section below)
                           │
                           ▼
 3. When you build a game (pdgoc -device):
@@ -321,47 +368,9 @@ This is what makes the Playdate support strategy possible:
 
 
 **Custom GC**:  
-Currently uses "leaking" GC type–heap allocations from both Go and the Playdate C API are never reclaimed unless you free them manually.
+A conservative mark-and-sweep GC designed for Playdate's constraints — see [Conservative Mark-Sweep GC](#conservative-mark-sweep-gc) below for the full details. It tracks Go-level objects conservatively, integrates with the SDK allocator, and uses a finalizer pattern to automatically free C-level API objects (bitmaps, sprites, sounds) when they become unreachable – managing both heaps in one system.
 
-This isn't the goal. We're building a conservative mark-and-sweep GC designed for Playdate's constraints:
-- Tracks Go-level objects conservatively, integrated with the SDK allocator.
-- Uses a finalizers pattern to automatically free C-level API objects (bitmaps, sprites, sounds) when they become unreachable – managing both heaps in one system.
-- Lightweight stop-the-world pauses, lighter than Go's stock tri-color GC, tuned for a constrained system.
-
-The priority is making it work reliably. Concrete specifications will follow. Once stable, the headache shifts from manual frees to what every Go developer already handles on constrained systems: keeping heap churn low. A much better problem to have.
-
-Follow this link to the progress https://github.com/playdate-go/pdgo/issues/6: 
-
-<details>
-<summary>click to see: gc_playdate.go</summary>
-
-```go
-//go:noinline
-func alloc(size uintptr, layout unsafe.Pointer) unsafe.Pointer {
-    size = align(size)
-    gcTotalAlloc += uint64(size)
-    gcMallocs++
-
-    ptr := _cgo_pd_realloc(nil, size)
-    if ptr == nil {
-        runtimePanic("out of memory")
-    }
-
-    // Zero the allocated memory
-    memzero(ptr, size)
-    return ptr
-}
-
-func GC() {
-    // No-op - leaking GC, manual free required
-}
-
-func SetFinalizer(obj interface{}, finalizer interface{}) {
-    // No-op
-}
-```
-
-</details>
+Follow this link to the progress https://github.com/playdate-go/pdgo/issues/6:
 
 **No Static Heap**:  
 Standard TinyGo embedded targets reserve heap space in BSS section. Our runtime configuration eliminates this by setting `needsStaticHeap = false`.
@@ -531,7 +540,7 @@ pdgo ships a **custom conservative tri-color mark-sweep GC** (`gc.playdate`) bui
 
 ### Finalizers
 
-`runtime.SetFinalizer` works, and the pdgo wrappers register finalizers automatically for C-managed resources (Bitmap, Font, Sound, File) — no manual free needed. Misuse (non-pointer object, wrong finalizer signature) panics. A finalizer that itself panics is caught and logged to the console; it does not halt the device.
+`runtime.SetFinalizer` works, and the pdgo wrappers register finalizers automatically for C-managed resources (Bitmap, Font, Sound, File) — no manual free needed (see [Memory Management](#memory-management) for how pdgo additionally keeps SDK-referenced objects alive). Misuse (non-pointer object, wrong finalizer signature) panics. A finalizer that itself panics is caught and logged to the console; it does not halt the device.
 
 Conservative-scanning tradeoff: a dead object can be retained if a non-pointer value on the stack or in a global happens to look like a heap pointer. The effect is bounded extra memory use, never corruption.
 
