@@ -20,8 +20,9 @@ var (
 	pd *pdgo.PlaydateAPI
 
 	// Sprites
-	target     *pdgo.LCDSprite
-	targetMask *pdgo.LCDBitmap
+	target      *pdgo.LCDSprite
+	targetMask  *pdgo.LCDBitmap
+	targetImage *pdgo.LCDBitmap // target sprite's image; the sprite keeps only the C pointer
 	covers     []*coverSprite
 
 	// Images
@@ -82,7 +83,8 @@ func initGame() {
 
 	// Create target sprite
 	target = pd.Sprite.NewSprite()
-	pd.Sprite.SetImage(target, blackCircle, pdgo.BitmapUnflipped)
+	targetImage = blackCircle
+	pd.Sprite.SetImage(target, targetImage, pdgo.BitmapUnflipped)
 	pd.Sprite.SetCollideRect(target, pdgo.PDRect{X: 0, Y: 0, Width: TargetSize, Height: TargetSize})
 	pd.Sprite.AddSprite(target)
 	pd.Sprite.MoveTo(target, 200, 120)

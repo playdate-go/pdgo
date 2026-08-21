@@ -202,6 +202,8 @@ func (sy *SynthAPI) NewSynth() *PDSynth {
 		synth := &PDSynth{ptr: ptr}
 		runtime.SetFinalizer(synth, func(s *PDSynth) {
 			if s.ptr != nil {
+				releaseSynthSample(s.ptr)
+				releaseSynthVoices(s.ptr)
 				C.pd_sound_synth_free(s.ptr)
 			}
 		})
@@ -210,9 +212,12 @@ func (sy *SynthAPI) NewSynth() *PDSynth {
 	return nil
 }
 
-// FreeSynth frees a synth
+// FreeSynth frees a synth and releases everything pdgo retained for it
+// (its sample and instrument voice registrations).
 func (sy *SynthAPI) FreeSynth(synth *PDSynth) {
 	if synth != nil && synth.ptr != nil {
+		releaseSynthSample(synth.ptr)
+		releaseSynthVoices(synth.ptr)
 		C.pd_sound_synth_free(synth.ptr)
 		synth.ptr = nil
 	}
@@ -313,7 +318,9 @@ func (sy *SynthAPI) IsPlaying(synth *PDSynth) bool {
 	return false
 }
 
-// SetSample sets the sample for the synth
+// SetSample sets the sample for the synth. The sample is kept alive by pdgo
+// while the synth uses it, and is released automatically on the next
+// SetSample or when the synth is freed.
 func (sy *SynthAPI) SetSample(synth *PDSynth, sample *AudioSample, sustainStart, sustainEnd uint32) {
 	if synth != nil && synth.ptr != nil {
 		var samplePtr unsafe.Pointer
@@ -321,6 +328,7 @@ func (sy *SynthAPI) SetSample(synth *PDSynth, sample *AudioSample, sustainStart,
 			samplePtr = sample.ptr
 		}
 		C.pd_sound_synth_setSample(synth.ptr, samplePtr, C.uint32_t(sustainStart), C.uint32_t(sustainEnd))
+		retainSynthSample(synth.ptr, sample)
 	}
 }
 
@@ -340,10 +348,16 @@ func (sy *SynthAPI) Copy(synth *PDSynth) *PDSynth {
 // ChannelAPI wraps channel functions
 type ChannelAPI struct{}
 
-// AddInstrumentAsSource adds an instrument as a source to a channel
+// AddInstrumentAsSource adds an instrument as a source to a channel. The
+// instrument is kept alive by pdgo while the channel uses it; the SDK offers
+// no removal API, so it is released only by an explicit FreeInstrument.
 func (c *ChannelAPI) AddInstrumentAsSource(channel *SoundChannel, inst *PDSynthInstrument) bool {
 	if channel != nil && channel.ptr != nil && inst != nil && inst.ptr != nil {
-		return C.pd_sound_channel_addInstrument(channel.ptr, inst.ptr) != 0
+		ok := C.pd_sound_channel_addInstrument(channel.ptr, inst.ptr) != 0
+		if ok {
+			retainInstrument(inst)
+		}
+		return ok
 	}
 	return false
 }
@@ -442,7 +456,9 @@ func (s *SequenceAPI) GetCurrentStep(seq *SoundSequence) int {
 // TrackAPI wraps track functions
 type TrackAPI struct{}
 
-// SetInstrument sets the instrument for a track
+// SetInstrument sets the instrument for a track. The instrument is kept
+// alive by pdgo while it is set on the track; the SDK offers no removal API,
+// so it is released only by an explicit FreeInstrument.
 func (t *TrackAPI) SetInstrument(track *SequenceTrack, inst *PDSynthInstrument) {
 	if track != nil && track.ptr != nil {
 		var instPtr unsafe.Pointer
@@ -450,6 +466,9 @@ func (t *TrackAPI) SetInstrument(track *SequenceTrack, inst *PDSynthInstrument) 
 			instPtr = inst.ptr
 		}
 		C.pd_sound_track_setInstrument(track.ptr, instPtr)
+		if inst != nil {
+			retainInstrument(inst)
+		}
 	}
 }
 
@@ -509,12 +528,32 @@ func (i *InstrumentAPI) SetVolume(inst *PDSynthInstrument, left, right float32) 
 	}
 }
 
-// AddVoice adds a voice to the instrument
+// AddVoice adds a voice to the instrument. Both the instrument and the synth
+// are kept alive by pdgo while the instrument uses the voice; the SDK offers
+// no removal API, so they are released only by an explicit FreeInstrument or
+// FreeSynth.
 func (i *InstrumentAPI) AddVoice(inst *PDSynthInstrument, synth *PDSynth, rangeStart, rangeEnd MIDINote, transpose float32) bool {
 	if inst != nil && inst.ptr != nil && synth != nil && synth.ptr != nil {
-		return C.pd_sound_instrument_addVoice(inst.ptr, synth.ptr, C.float(rangeStart), C.float(rangeEnd), C.float(transpose)) != 0
+		ok := C.pd_sound_instrument_addVoice(inst.ptr, synth.ptr, C.float(rangeStart), C.float(rangeEnd), C.float(transpose)) != 0
+		if ok {
+			retainInstrument(inst)
+			retainInstrumentVoice(inst.ptr, synth)
+		}
+		return ok
 	}
 	return false
+}
+
+// FreeInstrument frees an instrument and releases pdgo's references to it
+// and its voices. Without this call, instruments added to channels, tracks
+// or holding voices are retained by pdgo for the program lifetime (the SDK
+// exposes no removal API for them).
+func (i *InstrumentAPI) FreeInstrument(inst *PDSynthInstrument) {
+	if inst != nil && inst.ptr != nil {
+		releaseInstrument(inst.ptr)
+		C.pd_sound_instrument_free(inst.ptr)
+		inst.ptr = nil
+	}
 }
 
 // ============== FilePlayer ==============
@@ -639,6 +678,7 @@ func (s *Sound) NewSamplePlayer() *SamplePlayer {
 		player := &SamplePlayer{ptr: ptr}
 		runtime.SetFinalizer(player, func(p *SamplePlayer) {
 			if p.ptr != nil {
+				releasePlayerSample(p.ptr)
 				C.pd_sound_sampleplayer_free(p.ptr)
 			}
 		})
@@ -647,18 +687,23 @@ func (s *Sound) NewSamplePlayer() *SamplePlayer {
 	return nil
 }
 
-// FreeSamplePlayer frees a sample player
+// FreeSamplePlayer frees a sample player and releases pdgo's reference to
+// its sample.
 func (s *Sound) FreeSamplePlayer(player *SamplePlayer) {
 	if player != nil && player.ptr != nil {
+		releasePlayerSample(player.ptr)
 		C.pd_sound_sampleplayer_free(player.ptr)
 		player.ptr = nil
 	}
 }
 
-// SetSamplePlayerSample sets the sample to play
+// SetSamplePlayerSample sets the sample to play. The sample is kept alive by
+// pdgo while the player uses it, and is released automatically on the next
+// SetSamplePlayerSample or when the player is freed.
 func (s *Sound) SetSamplePlayerSample(player *SamplePlayer, sample *AudioSample) {
 	if player != nil && player.ptr != nil && sample != nil {
 		C.pd_sound_sampleplayer_setSample(player.ptr, sample.ptr)
+		retainPlayerSample(player.ptr, sample)
 	}
 }
 

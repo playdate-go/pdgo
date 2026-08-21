@@ -32,6 +32,12 @@ var (
 
 	// XorShift random state
 	randState uint32 = 12345
+
+	// Keep references to static blocks so their sprites stay alive.
+	// The C sprites are owned by Go wrappers with finalizers: if the wrappers
+	// become unreachable, the sprites are freed even though the SDK display
+	// list still references them.
+	blocks []*pdgo.LCDSprite
 )
 
 // random returns a pseudo-random uint32 using XorShift
@@ -69,19 +75,21 @@ func initGame() {
 	displayWidth := float32(400)
 	displayHeight := float32(240)
 
-	createBlock(0, 0, displayWidth, borderSize)                                              // top
-	createBlock(0, borderSize, borderSize, displayHeight-borderSize*2)                       // left
-	createBlock(displayWidth-borderSize, borderSize, borderSize, displayHeight-borderSize*2) // right
-	createBlock(0, displayHeight-borderSize, displayWidth, borderSize)                       // bottom
+	blocks = append(blocks,
+		createBlock(0, 0, displayWidth, borderSize),                                              // top
+		createBlock(0, borderSize, borderSize, displayHeight-borderSize*2),                       // left
+		createBlock(displayWidth-borderSize, borderSize, borderSize, displayHeight-borderSize*2), // right
+		createBlock(0, displayHeight-borderSize, displayWidth, borderSize),                       // bottom
+	)
 
 	// Create random obstacle blocks
 	for i := 0; i < 6; i++ {
-		createBlock(
+		blocks = append(blocks, createBlock(
 			float32(randInt(270)+50),
 			float32(randInt(100)+50),
 			float32(randInt(30)+10),
 			float32(randInt(90)+10),
-		)
+		))
 	}
 }
 

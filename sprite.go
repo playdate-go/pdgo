@@ -129,6 +129,8 @@ func (s *SpriteAPI) NewSprite() *LCDSprite {
 		sprite := &LCDSprite{ptr: ptr}
 		runtime.SetFinalizer(sprite, func(sp *LCDSprite) {
 			if sp.ptr != nil {
+				releaseDisplaySprite(sp.ptr)
+				releaseSpriteImage(sp.ptr)
 				unregisterSpriteCallbacks(sp.ptr)
 				C.pd_sprite_free(sp.ptr)
 			}
@@ -138,9 +140,14 @@ func (s *SpriteAPI) NewSprite() *LCDSprite {
 	return nil
 }
 
-// FreeSprite frees a sprite
+// FreeSprite frees a sprite and releases everything pdgo retained for it
+// (display-list membership, image). Prefer RemoveSprite for sprites on the
+// display list; explicit freeing is optional — finalizers handle unreachable
+// sprites automatically.
 func (s *SpriteAPI) FreeSprite(sprite *LCDSprite) {
 	if sprite != nil && sprite.ptr != nil {
+		releaseDisplaySprite(sprite.ptr)
+		releaseSpriteImage(sprite.ptr)
 		unregisterSpriteCallbacks(sprite.ptr)
 		C.pd_sprite_free(sprite.ptr)
 		sprite.ptr = nil
@@ -149,23 +156,30 @@ func (s *SpriteAPI) FreeSprite(sprite *LCDSprite) {
 
 // ============== Display List ==============
 
-// AddSprite adds a sprite to the display list
+// AddSprite adds a sprite to the display list. The sprite is kept alive by
+// pdgo while it is on the display list; it is released by RemoveSprite,
+// RemoveAllSprites or FreeSprite.
 func (s *SpriteAPI) AddSprite(sprite *LCDSprite) {
 	if sprite != nil && sprite.ptr != nil {
 		C.pd_sprite_add(sprite.ptr)
+		retainDisplaySprite(sprite)
 	}
 }
 
-// RemoveSprite removes a sprite from the display list
+// RemoveSprite removes a sprite from the display list. Afterwards the sprite
+// is no longer retained by pdgo and is freed automatically once unreachable.
 func (s *SpriteAPI) RemoveSprite(sprite *LCDSprite) {
 	if sprite != nil && sprite.ptr != nil {
 		C.pd_sprite_remove(sprite.ptr)
+		releaseDisplaySprite(sprite.ptr)
 	}
 }
 
-// RemoveAllSprites removes all sprites from display
+// RemoveAllSprites removes all sprites from display and releases pdgo's
+// references to them.
 func (s *SpriteAPI) RemoveAllSprites() {
 	C.pd_sprite_removeAll()
+	clearDisplaySprites()
 }
 
 // GetSpriteCount returns number of sprites
@@ -175,7 +189,9 @@ func (s *SpriteAPI) GetSpriteCount() int {
 
 // ============== Image ==============
 
-// SetImage sets the sprite's image
+// SetImage sets the sprite's image. The bitmap is kept alive by pdgo while
+// the sprite uses it, and is released automatically on the next SetImage or
+// when the sprite is freed.
 func (s *SpriteAPI) SetImage(sprite *LCDSprite, image *LCDBitmap, flip LCDBitmapFlip) {
 	if sprite != nil && sprite.ptr != nil {
 		var imgPtr unsafe.Pointer
@@ -183,6 +199,7 @@ func (s *SpriteAPI) SetImage(sprite *LCDSprite, image *LCDBitmap, flip LCDBitmap
 			imgPtr = image.ptr
 		}
 		C.pd_sprite_setImage(sprite.ptr, imgPtr, C.int(flip))
+		retainSpriteImage(sprite.ptr, image)
 	}
 }
 

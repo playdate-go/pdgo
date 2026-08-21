@@ -12,6 +12,10 @@ var (
 	pd      *pdgo.PlaydateAPI
 	tilemap *pdgo.LCDTileMap
 
+	// Keep a reference to the image table: the tilemap stores the C pointer,
+	// but only the Go wrapper keeps the C object alive.
+	imageTable *pdgo.LCDBitmapTable
+
 	// XorShift random state
 	randState uint32 = 12345
 )
@@ -50,9 +54,10 @@ func initGame() {
 		pd.System.Error("Couldn't load font bitmap table")
 		return
 	}
+	imageTable = table
 
 	// Set the image table for the tilemap
-	tilemap.SetImageTable(table)
+	tilemap.SetImageTable(imageTable)
 }
 
 // update is called every frame

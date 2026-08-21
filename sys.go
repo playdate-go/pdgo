@@ -213,11 +213,14 @@ func pdgo_event_trampoline(event C.int, arg C.uint32_t) {
 	CallEventCallback(PDSystemEvent(event), uint32(arg))
 }
 
-// SetMenuImage sets the image shown in the system menu while paused
+// SetMenuImage sets the image shown in the system menu while paused. The
+// bitmap is kept alive by pdgo for the lifetime of the program (the menu
+// image cannot be unset).
 func (s *System) SetMenuImage(bitmap *LCDBitmap, xOffset int) {
 	var ptr unsafe.Pointer
 	if bitmap != nil {
 		ptr = bitmap.ptr
 	}
 	C.pd_sys_setMenuImage(ptr, C.int(xOffset))
+	menuImage = bitmap
 }

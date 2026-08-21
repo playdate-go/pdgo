@@ -137,18 +137,23 @@ func (g *Graphics) SetLineCapStyle(style LCDLineCapStyle) {
 	C.pd_gfx_setLineCapStyle(C.int(style))
 }
 
-// PushContext pushes a new drawing context
+// PushContext pushes a new drawing context. A nil target pushes a context
+// targeting the display framebuffer. The target bitmap is kept alive by pdgo
+// until the matching PopContext.
 func (g *Graphics) PushContext(target *LCDBitmap) {
 	var ptr unsafe.Pointer
 	if target != nil {
 		ptr = target.ptr
 	}
 	C.pd_gfx_pushContext(ptr)
+	pushRetainedContext(target)
 }
 
-// PopContext pops the current drawing context
+// PopContext pops the current drawing context, releasing pdgo's reference to
+// the bitmap pushed by the matching PushContext.
 func (g *Graphics) PopContext() {
 	C.pd_gfx_popContext()
+	popRetainedContext()
 }
 
 // ============== Drawing Primitives ==============
@@ -211,11 +216,13 @@ func (g *Graphics) GetTextWidth(font *LCDFont, text string, tracking int) int {
 	return int(C.pd_gfx_getTextWidth(fontPtr, (*C.char)(unsafe.Pointer(&cstr[0])), C.int(len(text)), C.int(UTF8Encoding), C.int(tracking)))
 }
 
-// SetFont sets the current font
+// SetFont sets the current font. The font is kept alive by pdgo while it is
+// the active font, and is released automatically when a new font is set.
 func (g *Graphics) SetFont(font *LCDFont) {
 	if font != nil {
 		C.pd_gfx_setFont(font.ptr)
 	}
+	currentFont = font
 }
 
 // SetTextTracking sets text tracking
@@ -375,18 +382,17 @@ func (g *Graphics) RotatedBitmap(bitmap *LCDBitmap, rotation, xscale, yscale flo
 	return nil
 }
 
-// GetBitmapMask returns the mask bitmap for the given bitmap
+// GetBitmapMask returns the mask bitmap for the given bitmap. The mask is
+// owned by the parent bitmap: the returned wrapper borrows it and must not
+// (and does not) free it. Keep a reference to the parent bitmap for as long
+// as the mask is in use.
 func (g *Graphics) GetBitmapMask(bitmap *LCDBitmap) *LCDBitmap {
 	if bitmap != nil && bitmap.ptr != nil {
 		ptr := C.pd_gfx_getBitmapMask(bitmap.ptr)
 		if ptr != nil {
-			mask := &LCDBitmap{ptr: ptr}
-			runtime.SetFinalizer(mask, func(b *LCDBitmap) {
-				if b.ptr != nil {
-					C.pd_gfx_freeBitmap(b.ptr)
-				}
-			})
-			return mask
+			// No finalizer: the mask belongs to the parent bitmap and is
+			// freed together with it by the SDK.
+			return &LCDBitmap{ptr: ptr}
 		}
 	}
 	return nil
@@ -404,18 +410,25 @@ func (g *Graphics) SetBitmapMask(bitmap, mask *LCDBitmap) bool {
 	return false
 }
 
-// SetStencilImage sets a stencil image for drawing
+// SetStencilImage sets a stencil image for drawing. A nil stencil clears the
+// current stencil. The stencil bitmap is kept alive by pdgo while it is set,
+// and is released automatically on the next SetStencilImage.
 func (g *Graphics) SetStencilImage(stencil *LCDBitmap, tile bool) {
-	if stencil != nil && stencil.ptr != nil {
-		var tileFlag C.int
-		if tile {
-			tileFlag = 1
-		}
-		C.pd_gfx_setStencilImage(stencil.ptr, tileFlag)
+	var ptr unsafe.Pointer
+	if stencil != nil {
+		ptr = stencil.ptr
 	}
+	var tileFlag C.int
+	if tile {
+		tileFlag = 1
+	}
+	C.pd_gfx_setStencilImage(ptr, tileFlag)
+	currentStencil = stencil
 }
 
-// SetColorToPattern sets up a pattern color for drawing
+// SetColorToPattern sets up a pattern color for drawing. The pattern bitmap
+// is kept alive by pdgo while the pattern color is in use, and is released
+// automatically on the next SetColorToPattern.
 func (g *Graphics) SetColorToPattern(bitmap *LCDBitmap, x, y int) LCDColor {
 	var color C.uint32_t
 	var bitmapPtr unsafe.Pointer
@@ -423,6 +436,7 @@ func (g *Graphics) SetColorToPattern(bitmap *LCDBitmap, x, y int) LCDColor {
 		bitmapPtr = bitmap.ptr
 	}
 	C.pd_gfx_setColorToPattern(unsafe.Pointer(&color), bitmapPtr, C.int(x), C.int(y))
+	patternBitmap = bitmap
 	return LCDColor(color)
 }
 
@@ -493,6 +507,7 @@ func (g *Graphics) NewTilemap() *LCDTileMap {
 		tilemap := &LCDTileMap{ptr: ptr}
 		runtime.SetFinalizer(tilemap, func(t *LCDTileMap) {
 			if t.ptr != nil {
+				releaseTilemapTable(t.ptr)
 				C.pd_gfx_tilemap_free(t.ptr)
 			}
 		})
@@ -501,18 +516,22 @@ func (g *Graphics) NewTilemap() *LCDTileMap {
 	return nil
 }
 
-// Free frees the tilemap
+// Free frees the tilemap and releases pdgo's reference to its image table.
 func (t *LCDTileMap) Free() {
 	if t != nil && t.ptr != nil {
+		releaseTilemapTable(t.ptr)
 		C.pd_gfx_tilemap_free(t.ptr)
 		t.ptr = nil
 	}
 }
 
-// SetImageTable sets the image table for the tilemap
+// SetImageTable sets the image table for the tilemap. The table is kept
+// alive by pdgo while the tilemap uses it, and is released automatically on
+// the next SetImageTable or when the tilemap is freed.
 func (t *LCDTileMap) SetImageTable(table *LCDBitmapTable) {
 	if t != nil && t.ptr != nil && table != nil && table.ptr != nil {
 		C.pd_gfx_tilemap_setImageTable(t.ptr, table.ptr)
+		retainTilemapTable(t.ptr, table)
 	}
 }
 

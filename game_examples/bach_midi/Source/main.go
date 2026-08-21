@@ -8,6 +8,13 @@ var (
 	pd       *pdgo.PlaydateAPI
 	seq      *pdgo.SoundSequence
 	lastStep int
+
+	// Keep references to objects the sound system holds pointers to:
+	// instrument, its voices and the sample. If these wrappers become
+	// unreachable, finalizers free the C objects mid-playback.
+	inst   *pdgo.PDSynthInstrument
+	voices []*pdgo.PDSynth
+	piano  *pdgo.AudioSample
 )
 
 func initGame() {
@@ -21,21 +28,17 @@ func initGame() {
 	}
 
 	// --- Instrument ---
-	inst := pd.Sound.Instrument.NewInstrument()
+	inst = pd.Sound.Instrument.NewInstrument()
 	pd.Sound.Instrument.SetVolume(inst, 0.2, 0.2)
 
 	defaultChannel := pd.Sound.GetDefaultChannel()
 	pd.Sound.Channel.AddInstrumentAsSource(defaultChannel, inst)
 
-	// --- Base synth template ---
-	baseSynth := pd.Sound.Synth.NewSynth()
-
 	// Try sample first
-	if piano := pd.Sound.Sample.Load("piano"); piano != nil {
-		pd.Sound.Synth.SetSample(baseSynth, piano, 0, 0)
+	piano = pd.Sound.Sample.Load("piano")
+	if piano != nil {
 		pd.System.LogToConsole("Using piano sample")
 	} else {
-		pd.Sound.Synth.SetWaveform(baseSynth, pdgo.WaveformSine)
 		pd.System.LogToConsole("Using sine fallback")
 	}
 
@@ -57,8 +60,9 @@ func initGame() {
 
 		for v := 0; v < poly; v++ {
 			s := pd.Sound.Synth.NewSynth()
+			voices = append(voices, s)
 
-			if piano := pd.Sound.Sample.Load("piano"); piano != nil {
+			if piano != nil {
 				pd.Sound.Synth.SetSample(s, piano, 0, 0)
 			} else {
 				pd.Sound.Synth.SetWaveform(s, pdgo.WaveformSine)
