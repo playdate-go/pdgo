@@ -8,10 +8,10 @@ import (
 	"testing"
 )
 
-// A .pdx bundle carries only the pdc-encrypted pdex.bin; the symbolizable
-// ELF sits in the game dir beside the bundle (build/pdex.elf from manual
-// DeviceBuildScriptUnix.sh runs). Passing the bundle must find it there.
-func TestFindElfFromPdxBundle(t *testing.T) {
+// A .pdx bundle carries only the pdc-encrypted pdex.bin and is never a
+// usable ELF source, even when the game dir beside it holds the kept
+// build/pdex.elf — the game dir itself must be passed instead.
+func TestFindElfRejectsPdxBundle(t *testing.T) {
 	gameDir := filepath.Join(t.TempDir(), "game")
 	bundle := filepath.Join(gameDir, "MyGame.pdx")
 	if err := os.MkdirAll(bundle, 0o755); err != nil {
@@ -28,17 +28,22 @@ func TestFindElfFromPdxBundle(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, err := findElf(bundle, "")
-	if err != nil || got != elfPath {
-		t.Fatalf("findElf(bundle) = (%q, %v), want (%q, nil)", got, err, elfPath)
+	if _, err := findElf(bundle, ""); err == nil || !strings.Contains(err.Error(), "is a .pdx bundle") {
+		t.Fatalf("want .pdx-bundle error, got %v", err)
 	}
 
-	// Without the sibling ELF the encrypted-bin diagnostic must win
-	// over a silent cwd walk-up.
-	if err := os.RemoveAll(filepath.Join(gameDir, "build")); err != nil {
+	// The game dir is the supported way to reach build/pdex.elf.
+	got, err := findElf(gameDir, "")
+	if err != nil || got != elfPath {
+		t.Fatalf("findElf(gameDir) = (%q, %v), want (%q, nil)", got, err, elfPath)
+	}
+
+	// A pdex.bin passed directly gets the encrypted-bin diagnostic.
+	bin := filepath.Join(gameDir, "pdex.bin")
+	if err := os.WriteFile(bin, []byte("Playdate PDX\x00\x00\x00\x00junk"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := findElf(bundle, ""); err == nil || !strings.Contains(err.Error(), "pdc-encrypted") {
+	if _, err := findElf(bin, ""); err == nil || !strings.Contains(err.Error(), "pdc-encrypted") {
 		t.Fatalf("want encrypted-bin error, got %v", err)
 	}
 }

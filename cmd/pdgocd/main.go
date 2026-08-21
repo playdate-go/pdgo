@@ -2,7 +2,7 @@
 //
 // Usage:
 //
-//	pdgocd [-e <pdex.elf|.pdx dir|game dir>] [-d] [-log <text>] [crashlog.txt]
+//	pdgocd [-e <pdex.elf|game dir>] [-d] [-log <text>] [crashlog.txt]
 //
 // The crash log and the ELF source may also be passed together as two
 // positional arguments, in either order. The log itself comes from a
@@ -13,14 +13,10 @@
 // game ELF links at 0 and the device maps it at 0x90000000) and resolved
 // with arm-none-eabi-addr2line, falling back to raw ELF symbol names.
 //
-// Passing a .pdx bundle resolves the ELF from inside the bundle (raw
-// pdex.bin, when unencrypted) or from the game directory beside it
-// (build/pdex.elf).
-//
-// Note: pdgoc deletes build/ after a successful device build, and the
-// pdex.bin inside a .pdx bundle is pdc-encrypted ("Playdate PDX" header)
-// and cannot be symbolized. Build via
-// cmd/pdgoc/scripts/DeviceBuildScriptUnix.sh, which keeps build/pdex.elf.
+// The ELF source is an ELF file or a directory searched for
+// build/pdex.elf and pdex.elf. A .pdx bundle is not a usable source: it
+// contains only the pdc-encrypted pdex.bin. Build with
+// 'pdgoc -device -keep' to keep the game's build/pdex.elf.
 package main
 
 import (
@@ -35,16 +31,17 @@ import (
 	"time"
 )
 
-const usageText = `Usage: pdgocd [-e <elf>] [-d] [-log <text>] [crashlog.txt] [<pdex.elf|.pdx|game dir>]
+const usageText = `Usage: pdgocd [-e <elf>] [-d] [-log <text>] [crashlog.txt] [<pdex.elf|game dir>]
 
 Symbolizes Playdate device crash logs against a game ELF.
 The crash log comes from a file argument, stdin, or -log (raw text) —
-but only one of those. A positional argument that is a directory
-(.pdx bundle, game dir) or an ELF file is used as the ELF source; the
-crash log and the ELF source may be passed together in either order.
+but only one of those. A positional argument that is an ELF file or a
+directory (searched for build/pdex.elf, pdex.elf) is used as the ELF
+source; the crash log and the ELF source may be passed together in
+either order.
 
-  -e string   game ELF, .pdx bundle dir, or game dir; a .pdx also
-              checks the game dir beside it (build/pdex.elf)
+  -e string   game ELF file, or a directory searched for
+              build/pdex.elf and pdex.elf
   -log string raw crash-log text, instead of a log file or stdin
   -d          disassemble instructions around the faulting pc
 
@@ -58,7 +55,7 @@ func main() {
 func run(args []string, stdin io.Reader, out, errw io.Writer) int {
 	fs := flag.NewFlagSet("pdgocd", flag.ContinueOnError)
 	fs.SetOutput(errw)
-	elfFlag := fs.String("e", "", "game ELF, .pdx bundle dir, or game dir; a .pdx also checks the game dir beside it")
+	elfFlag := fs.String("e", "", "game ELF file, or a directory searched for build/pdex.elf and pdex.elf")
 	logFlag := fs.String("log", "", "raw crash-log text, instead of a log file or stdin")
 	disasm := fs.Bool("d", false, "disassemble instructions around the faulting pc")
 	if err := fs.Parse(args); err != nil {
@@ -354,31 +351,18 @@ func frameStr(fs []Frame) string {
 }
 
 // findElf locates a symbolizable ELF. explicit comes from -e, hint from the
-// positional argument; both may be a file or a directory (.pdx bundle or
-// game dir). Without either, the search walks up from the working
-// directory. Encrypted bundle binaries (Playdate PDX magic) are remembered
-// so the final error can explain them.
+// positional argument; both may be an ELF file or a directory searched for
+// build/pdex.elf and pdex.elf. Without either, the search walks up from
+// the working directory. A .pdx bundle is never a source: it contains only
+// the pdc-encrypted pdex.bin.
 func findElf(explicit, hint string) (string, error) {
-	encrypted := ""
-	probe := func(p string) (found string, isEncrypted bool) {
-		switch fileMagic(p) {
-		case "elf":
-			return p, false
-		case "pdx":
-			return "", true
-		}
-		return "", false
-	}
 	searchDir := func(dir string) (string, bool) {
 		for _, cand := range []string{
-			filepath.Join(dir, "pdex.bin"),          // unencrypted bundles carry a raw ELF here
-			filepath.Join(dir, "build", "pdex.elf"), // manual DeviceBuildScriptUnix.sh runs keep this
+			filepath.Join(dir, "build", "pdex.elf"), // kept by 'pdgoc -device -keep'
 			filepath.Join(dir, "pdex.elf"),
 		} {
-			if p, enc := probe(cand); p != "" {
-				return p, true
-			} else if enc {
-				encrypted = cand
+			if fileMagic(cand) == "elf" {
+				return cand, true
 			}
 		}
 		return "", false
@@ -402,20 +386,13 @@ func findElf(explicit, hint string) (string, error) {
 				return "", fmt.Errorf("%s is not an ELF file", root)
 			}
 		}
+		if strings.HasSuffix(strings.TrimSuffix(root, string(filepath.Separator)), ".pdx") {
+			return "", errBundle(root)
+		}
 		if found, ok := searchDir(root); ok {
 			return found, nil
 		}
-		// A .pdx bundle lives in the game dir, next to the build/
-		// directory that manual device builds keep: search there too.
-		if clean := strings.TrimSuffix(root, string(filepath.Separator)); strings.HasSuffix(clean, ".pdx") {
-			if found, ok := searchDir(filepath.Dir(clean)); ok {
-				return found, nil
-			}
-		}
-		if encrypted != "" {
-			return "", errEncrypted(encrypted)
-		}
-		return "", fmt.Errorf("no pdex.elf found in or next to %s; pass -e <path-to-pdex.elf>", root)
+		return "", fmt.Errorf("no pdex.elf found in %s (looked for build/pdex.elf, pdex.elf); pass -e <path-to-pdex.elf>", root)
 	}
 
 	cwd, _ := os.Getwd()
@@ -427,13 +404,13 @@ func findElf(explicit, hint string) (string, error) {
 			break
 		}
 	}
-
-	if encrypted != "" {
-		return "", errEncrypted(encrypted)
-	}
-	return "", fmt.Errorf("no pdex.elf found (searched pdex.bin, build/pdex.elf, pdex.elf upward from %s); pass -e <path>", cwd)
+	return "", fmt.Errorf("no pdex.elf found (searched build/pdex.elf, pdex.elf upward from %s); pass -e <path>", cwd)
 }
 
 func errEncrypted(p string) error {
-	return fmt.Errorf("%s is a pdc-encrypted bundle binary (\"Playdate PDX\" header) and cannot be symbolized; no pdex.elf was found in the bundle or next to it.\nBuild the game via cmd/pdgoc/scripts/DeviceBuildScriptUnix.sh (it keeps build/pdex.elf) or pass -e <path-to-pdex.elf>", p)
+	return fmt.Errorf("%s is a pdc-encrypted bundle binary (\"Playdate PDX\" header) and cannot be symbolized; pass -e <path-to-pdex.elf>", p)
+}
+
+func errBundle(p string) error {
+	return fmt.Errorf("%s is a .pdx bundle: it contains only the pdc-encrypted pdex.bin and cannot be symbolized; pass the game's build/pdex.elf (kept by 'pdgoc -device -keep')", p)
 }

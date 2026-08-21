@@ -230,13 +230,14 @@ The crash log — exactly one of:
 | Raw text flag | `pdgocd -log "crash at ... r0: ..."` |
 | Stdin | `pbpaste \| pdgocd` |
 
-The ELF — a flag or a second positional argument (either order works, so `pdgocd SpriteGame.pdx crashlog.txt` and `pdgocd crashlog.txt SpriteGame.pdx` are the same):
+The ELF — a flag or a second positional argument (either order works, so `pdgocd game_examples/spritegame crashlog.txt` and `pdgocd crashlog.txt game_examples/spritegame` are the same):
 
 | Source | Resolution |
 |--------|-----------|
 | `-e build/pdex.elf` | Used directly |
-| `.pdx` bundle (e.g. `SpriteGame.pdx`) | Raw `pdex.bin` inside the bundle; otherwise `build/pdex.elf` from the game dir beside it |
-| Game directory | `pdex.bin`, `build/pdex.elf`, `pdex.elf`, walking up parent dirs |
+| Game directory (e.g. `game_examples/spritegame`) | `build/pdex.elf`, `pdex.elf`, walking up parent dirs |
+
+`.pdx` bundles are rejected with a pointer to `build/pdex.elf`: the `pdex.bin` inside a bundle is pdc-encrypted and cannot be symbolized.
 
 With no ELF argument at all, pdgocd walks up from the current directory looking for the same candidates.
 
@@ -302,7 +303,7 @@ Crash #1 - 2026/08/18 17:08:08
 ### Notes
 
 >[!IMPORTANT]
-> The `pdex.bin` inside a shipped `.pdx` bundle is pdc-encrypted and cannot be symbolized — pdgocd detects this and tells you. You need the `build/pdex.elf` from the **same build that crashed**: `pdgoc -device` cleans up `build/` after a successful build, so build with `pdgoc -device -keep` when you want the ELF kept, or keep your own copy when you ship a build.
+> Only an ELF can be symbolized — the `pdex.bin` inside a shipped `.pdx` bundle is pdc-encrypted, and pdgocd rejects bundles with an explanation. You need the `build/pdex.elf` from the **same build that crashed**: `pdgoc -device` cleans up `build/` after a successful build, so build with `pdgoc -device -keep` when you want the ELF kept, or keep your own copy when you ship a build.
 
 `arm-none-eabi-addr2line` comes from the same `gcc-arm-none-eabi` toolchain that device builds require (see [Quick Install](#quick-install)). Without it on PATH, pdgocd still works via ELF symbol-table lookup.
 
