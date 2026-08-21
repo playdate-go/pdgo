@@ -515,7 +515,7 @@ pdgo ships a **custom conservative tri-color mark-sweep GC** (`gc.playdate`) bui
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### Files (written to TinyGo by install.sh)
+### Files (written to TinyGo by install.sh / install.ps1)
 
 | File | Purpose |
 |------|---------|
@@ -526,8 +526,11 @@ pdgo ships a **custom conservative tri-color mark-sweep GC** (`gc.playdate`) bui
 | `gc_finalizer_playdate.go` | Finalizer table + panic-isolated invocation |
 | `gc_helpers.go` | Size classes, colors, alignment |
 | `gc_stack_playdate.go` | Root scanning: stack (ARM asm) + globals |
-| `gc_stack_playdate_arm.S` | ARM assembly for stack scanning |
 | `gc_playdate_leaking.go` | `gc.leaking` escape hatch (no-op GC) |
+| `runtime_playdate.go` | `runtime_init` entry, stack-top capture, ticks, console output |
+| `asm_arm.S` | Corrected `tinygo_scanCurrentStack` (restores r4-r11) + `tinygo_longjmp` |
+| `interrupt_cortexm.go` | `interrupt.In()` without SCB access (HardFaults in unprivileged game code) |
+| `playdate.json` | TinyGo target descriptor |
 | `playdate.ld` | Linker script with `_globals_start`, `_globals_end`, `_stack_top` |
 
 ### Leaking vs Conservative

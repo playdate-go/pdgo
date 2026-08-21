@@ -450,26 +450,41 @@ if ($skipTinyGo) {
 
         Write-Host '  Injecting Playdate support files...'
 
-        $targetsDir = Join-Path $tinygoDir 'targets'
-        $runtimeDir = Join-Path (Join-Path $tinygoDir 'src') 'runtime'
+        # Playdate support files: "source_file:destination_relative_to_tinygo_root".
+        # Keep in sync with PLAYDATE_PATCHES in install.sh.
+        $playdatePatches = @(
+            'playdate.json:targets/playdate.json'
+            'playdate.ld:targets/playdate.ld'
+            'runtime_playdate.go:src/runtime/runtime_playdate.go'
+            'gc_playdate.go:src/runtime/gc_playdate.go'
+            'gc_mark_playdate.go:src/runtime/gc_mark_playdate.go'
+            'gc_sweep_playdate.go:src/runtime/gc_sweep_playdate.go'
+            'gc_objectmap.go:src/runtime/gc_objectmap.go'
+            'gc_helpers.go:src/runtime/gc_helpers.go'
+            'gc_finalizer_playdate.go:src/runtime/gc_finalizer_playdate.go'
+            'gc_stack_playdate.go:src/runtime/gc_stack_playdate.go'
+            'gc_playdate_leaking.go:src/runtime/gc_playdate_leaking.go'
+            'interrupt_cortexm.go:src/runtime/interrupt/interrupt_cortexm.go'
+            'asm_arm.S:src/runtime/asm_arm.S'
+        )
 
         if ($isLocalBuild) {
             Write-Host 'Patching TinyGo with local files'
             Set-Location $localRoot
-            Copy-Item -Path '.\cmd\pdgoc\tinygo-patches\playdate.json' -Destination (Join-Path $targetsDir 'playdate.json')
-            Copy-Item -Path '.\cmd\pdgoc\tinygo-patches\playdate.ld' -Destination (Join-Path $targetsDir 'playdate.ld')
-            Copy-Item -Path '.\cmd\pdgoc\tinygo-patches\runtime_playdate.go' -Destination (Join-Path $runtimeDir 'runtime_playdate.go')
-            Copy-Item -Path '.\cmd\pdgoc\tinygo-patches\gc_playdate.go' -Destination (Join-Path $runtimeDir 'gc_playdate.go')
+            foreach ($patch in $playdatePatches) {
+                $src, $dst = $patch -split ':', 2
+                Copy-Item -Path ".\cmd\pdgoc\tinygo-patches\$src" -Destination (Join-Path $tinygoDir ($dst -replace '/', '\'))
+            }
         } else {
             # Determine the branch/tag/ref to use for downloading patches
             $pdgoBranch = if ($pdgoVersion -ne 'latest') { "refs/tags/$pdgoVersion" } else { 'main' }
             $patchesBaseUrl = "https://raw.githubusercontent.com/playdate-go/pdgo/$pdgoBranch/cmd/pdgoc/tinygo-patches"
 
             Write-Host "  Downloading patches from $patchesBaseUrl..."
-            Invoke-WebRequest -Uri "$patchesBaseUrl/playdate.json" -OutFile (Join-Path $targetsDir 'playdate.json')
-            Invoke-WebRequest -Uri "$patchesBaseUrl/playdate.ld" -OutFile (Join-Path $targetsDir 'playdate.ld')
-            Invoke-WebRequest -Uri "$patchesBaseUrl/runtime_playdate.go" -OutFile (Join-Path $runtimeDir 'runtime_playdate.go')
-            Invoke-WebRequest -Uri "$patchesBaseUrl/gc_playdate.go" -OutFile (Join-Path $runtimeDir 'gc_playdate.go')
+            foreach ($patch in $playdatePatches) {
+                $src, $dst = $patch -split ':', 2
+                Invoke-WebRequest -Uri "$patchesBaseUrl/$src" -OutFile (Join-Path $tinygoDir ($dst -replace '/', '\'))
+            }
         }
 
         Write-Host '  TinyGo with Playdate support ready!' -ForegroundColor Green
