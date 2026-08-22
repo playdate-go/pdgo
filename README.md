@@ -547,7 +547,13 @@ pdgo ships a **custom conservative tri-color mark-sweep GC** (`gc.playdate`) bui
 
 Two levels of measurement.
 
-**Host micro-benchmarks** of the GC's core data structures — `cmd/pdgoc/gcpure`, run with `go test -bench . ./gcpure` from `cmd/pdgoc` (measured on Apple M5 Pro, Go 1.25):
+**Host micro-benchmarks** of the GC's core data structures (`cmd/pdgoc/gcpure`), measured on Apple M5 Pro, Go 1.25. Run them with:
+
+```bash
+cd cmd/pdgoc
+go test ./gcpure            # unit tests
+go test -bench . ./gcpure   # benchmarks
+```
 
 | Operation | Result | What it shows |
 |-----------|--------|---------------|
@@ -989,10 +995,29 @@ git push origin my_feature
 
 ### For macOS and Linux
 
-Verify unit tests pass 
+Run the full test suite before pushing a PR.
+
+Unit tests — pdgoc tool (config, pdxinfo, GC core):
 ```bash
 cd cmd/pdgoc
-go test ./config/... ./pdxinfo/... -v
+go test ./...
+```
+
+Unit tests — pdgocd symbolizer (pure Go, no SDK needed):
+```bash
+cd ..
+go test ./cmd/pdgocd
+```
+
+Unit tests — API bindings (cgo, requires the Playdate SDK):
+```bash
+CGO_CFLAGS="-I$HOME/Developer/PlaydateSDK/C_API -DTARGET_EXTENSION=1" go test .
+```
+
+Optional — GC core benchmarks (the numbers in [Benchmarks](#benchmarks)):
+```bash
+cd cmd/pdgoc
+go test -bench . ./gcpure
 ```
 
 Verify all examples compile
@@ -1010,9 +1035,22 @@ chmod +x tour_of_go/*/build.sh
 
 ### For Windows
 
+Unit tests — pdgoc tool (config, pdxinfo, GC core):
 ```powershell
-cd cmd/pdgoc
-go test ./config/... ./pdxinfo/... -v
+cd cmd\pdgoc
+go test ./...
+```
+
+Unit tests — pdgocd symbolizer:
+```powershell
+cd ..
+go test ./cmd\pdgocd
+```
+
+Unit tests — API bindings (cgo, requires the Playdate SDK and a C compiler):
+```powershell
+$env:CGO_CFLAGS = "-I$env:PLAYDATE_SDK_PATH/C_API -DTARGET_EXTENSION=1"
+go test .
 ```
 
 ```powershell

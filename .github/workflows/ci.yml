@@ -40,7 +40,7 @@ jobs:
       - name: Unit tests
         run: |
           cd cmd/pdgoc
-          go test ./config/... ./pdxinfo/... -v
+          go test ./config/... ./pdxinfo/... ./gcpure/... -v
 
       - name: Unit tests (pdgocd)
         run: go test ./cmd/pdgocd/... -v
@@ -138,7 +138,7 @@ jobs:
       - name: Unit tests
         run: |
           cd cmd/pdgoc
-          go test ./config/... ./pdxinfo/... -v
+          go test ./config/... ./pdxinfo/... ./gcpure/... -v
 
       - name: Unit tests (pdgocd)
         run: go test ./cmd/pdgocd/... -v
@@ -221,7 +221,7 @@ jobs:
         shell: bash
         run: |
           cd cmd/pdgoc
-          go test ./config/... ./pdxinfo/... -v
+          go test ./config/... ./pdxinfo/... ./gcpure/... -v
 
       - name: Unit tests (pdgocd)
         shell: bash
