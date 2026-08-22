@@ -17,6 +17,7 @@ We are featured in **Cranko!** magazine - https://cranknockout.com/
 - [Memory Management](#memory-management)
 - [Internals](#internals)
 - [Conservative Mark-Sweep GC](#conservative-mark-sweep-gc)
+- [GC Benchmark](#gc-benchmark)
 - [Why Not Go But TinyGo](#why-not-go-but-tinygo)
 - [Build Flow](#build-flow)
 - [Known Issues](#known-issues)
@@ -543,35 +544,6 @@ pdgo ships a **custom conservative tri-color mark-sweep GC** (`gc.playdate`) bui
 | Finalizers | Not supported | `runtime.SetFinalizer` |
 | GC trigger | N/A | 3x heap growth / 64 KB minimum / 4096 allocations |
 
-### Benchmarks
-
-Two levels of measurement.
-
-**Host micro-benchmarks** of the GC's core data structures (`cmd/pdgoc/gcpure`), measured on Apple M5 Pro, Go 1.25. Run them with:
-
-```bash
-cd cmd/pdgoc
-go test ./gcpure            # unit tests
-go test -bench . ./gcpure   # benchmarks
-```
-
-| Operation | Result | What it shows |
-|-----------|--------|---------------|
-| Size-class lookup | 2.6 ns | per-allocation cost |
-| Free-list pop, deep list | 24 ns | O(1) — same cost at 65k entries |
-| Alloc-list unlink (middle) | 2.4 ns | O(1) doubly-linked list |
-| Object bitmap mark/clear | ~6 GB/s | linear in object size (16 B - 1 KB) |
-| `ObjectStart` lookup | 1.7 ns | interior pointers resolve in O(1) |
-| `ObjectStart`, 64 KB object | 25 ns | worst case: capped-offset walk-back |
-| Conservative scan, 1 MB window | 0.31 ms | every 4-byte slot resolved as a candidate pointer |
-| Mark-stack push/pop | 3.2 ns | gray queue during mark |
-| Finalizer add + sweep lookup | 19 ns | map-based table |
-| Composite sweep per object | 14 ns | free-list push + bitmap clear + alloc-list unlink |
-
-The host versions use side-map stand-ins where the runtime uses intrusive links, so absolute numbers overstate device cost — treat them as complexity verification and regression tracking, not pause predictions.
-
-**Device pauses** are measured on hardware by the `game_examples/gc_bench` example (1000 particles + 50 garbage allocations per frame; logs `frame,NumGC,HeapAlloc,LastPauseNs,LiveObjects` as CSV to the console). Observed pauses match the figures in [Leaking vs Conservative](#leaking-vs-conservative): 0.1-2 ms typical, ≤3 ms at 2 MB live heap.
-
 ### Finalizers
 
 `runtime.SetFinalizer` works, and the pdgo wrappers register finalizers automatically for C-managed resources (Bitmap, Font, Sound, File) — no manual free needed (see [Memory Management](#memory-management) for how pdgo additionally keeps SDK-referenced objects alive). Misuse (non-pointer object, wrong finalizer signature) panics. A finalizer that itself panics is caught and logged to the console; it does not halt the device.
@@ -659,6 +631,35 @@ func GC() {
 ```
 
 </details>
+
+## GC Benchmark
+
+Two levels of measurement.
+
+**Host micro-benchmarks** of the GC's core data structures (`cmd/pdgoc/gcpure`), measured on Apple M5 Pro, Go 1.25. Run them with:
+
+```bash
+cd cmd/pdgoc
+go test ./gcpure            # unit tests
+go test -bench . ./gcpure   # benchmarks
+```
+
+| Operation | Result | What it shows |
+|-----------|--------|---------------|
+| Size-class lookup | 2.6 ns | per-allocation cost |
+| Free-list pop, deep list | 24 ns | O(1) — same cost at 65k entries |
+| Alloc-list unlink (middle) | 2.4 ns | O(1) doubly-linked list |
+| Object bitmap mark/clear | ~6 GB/s | linear in object size (16 B - 1 KB) |
+| `ObjectStart` lookup | 1.7 ns | interior pointers resolve in O(1) |
+| `ObjectStart`, 64 KB object | 25 ns | worst case: capped-offset walk-back |
+| Conservative scan, 1 MB window | 0.31 ms | every 4-byte slot resolved as a candidate pointer |
+| Mark-stack push/pop | 3.2 ns | gray queue during mark |
+| Finalizer add + sweep lookup | 19 ns | map-based table |
+| Composite sweep per object | 14 ns | free-list push + bitmap clear + alloc-list unlink |
+
+The host versions use side-map stand-ins where the runtime uses intrusive links, so absolute numbers overstate device cost — treat them as complexity verification and regression tracking, not pause predictions.
+
+**Device pauses** are measured on hardware by the `game_examples/gc_bench` example (1000 particles + 50 garbage allocations per frame; logs `frame,NumGC,HeapAlloc,LastPauseNs,LiveObjects` as CSV to the console). Observed pauses match the figures in [Leaking vs Conservative](#leaking-vs-conservative): 0.1-2 ms typical, ≤3 ms at 2 MB live heap.
 
 ## Why Not Go But TinyGo
 
@@ -1014,7 +1015,7 @@ Unit tests — API bindings (cgo, requires the Playdate SDK):
 CGO_CFLAGS="-I$HOME/Developer/PlaydateSDK/C_API -DTARGET_EXTENSION=1" go test .
 ```
 
-Optional — GC core benchmarks (the numbers in [Benchmarks](#benchmarks)):
+Optional — GC core benchmarks (the numbers in [GC Benchmark](#gc-benchmark)):
 ```bash
 cd cmd/pdgoc
 go test -bench . ./gcpure
