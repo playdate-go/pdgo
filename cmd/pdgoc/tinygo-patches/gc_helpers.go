@@ -26,6 +26,7 @@ const (
 	hasFinalFlag   uint8 = 1 << 2
 	inFreeListFlag uint8 = 1 << 3
 	pinFlag        uint8 = 1 << 4
+	freshFlag      uint8 = 1 << 5
 )
 
 func sizeClassOf(size uintptr) uint8 {
@@ -84,3 +85,24 @@ func setPinned(c uint8, v bool) uint8 {
 	return c &^ pinFlag
 }
 func isPinned(c uint8) bool { return c&pinFlag != 0 }
+
+// Fresh blocks are ones no scan can have seen a root reference for yet: the
+// in-flight allocation whose own maybeTriggerGC fired (the caller has not
+// received the pointer), and blocks allocated while a GC is running
+// (mark-stack growth, finalizer allocations). alloc() clears the flag again
+// before returning in the idle state — blocks handed to the game are plain
+// white: reachable ones get marked on their own merits, unreachable ones are
+// swept the very cycle they die (sparing EVERY allocation one cycle ballooned
+// the heap by a full inter-cycle garbage batch: device 64KB live → 637KB).
+// Blocks stay colorWhite while fresh, so marking scans their contents
+// normally when a root does reach them — painting them gray instead made
+// markObject skip them, hiding everything reachable only through fresh
+// allocations and sweeping live referents (observed: finalizer closures
+// freed while still map-referenced).
+func setFresh(c uint8, v bool) uint8 {
+	if v {
+		return c | freshFlag
+	}
+	return c &^ freshFlag
+}
+func isFresh(c uint8) bool { return c&freshFlag != 0 }

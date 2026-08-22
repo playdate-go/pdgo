@@ -59,7 +59,10 @@ func GetAPI() *PlaydateAPI {
 	return api
 }
 
-// SetUpdateCallback sets the game update callback
+// SetUpdateCallback sets the game update callback. The callback runs every
+// frame for the lifetime of the game; there is no way to stop the update
+// loop. Its return value only controls the display: non-zero refreshes the
+// screen that frame, zero skips the redraw.
 var updateCallbackFn func() int
 
 func SetUpdateCallback(callback func() int) {

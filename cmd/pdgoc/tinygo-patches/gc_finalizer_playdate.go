@@ -21,6 +21,14 @@ type FinalizerFunc = func(unsafe.Pointer)
 // the scanner treats as the heap.
 var finalizers map[uintptr]func(unsafe.Pointer)
 
+// TEMPORARY device diagnostics for the corruption hunt: registration and
+// sweep-time lookup counters, printed in the per-cycle GC log line.
+var (
+	gcFinalAdds uint32
+	gcFinalHits uint32 // sweep-time lookups that found a finalizer
+	gcFinalMiss uint32 // sweep-time lookups on hasFinal blocks that found none
+)
+
 // finalizerKey bijectively maps an object pointer to a non-pointer-looking
 // map key (and back).
 func finalizerKey(p unsafe.Pointer) uintptr {
@@ -31,6 +39,7 @@ func finalizersAdd(obj unsafe.Pointer, fn func(unsafe.Pointer)) {
 	if finalizers == nil {
 		finalizers = make(map[uintptr]func(unsafe.Pointer), 64)
 	}
+	gcFinalAdds++
 	finalizers[finalizerKey(obj)] = fn
 }
 
@@ -42,8 +51,10 @@ func finalizersGet(obj unsafe.Pointer) func(unsafe.Pointer) {
 	}
 	fn, ok := finalizers[finalizerKey(obj)]
 	if !ok {
+		gcFinalMiss++
 		return nil
 	}
+	gcFinalHits++
 	delete(finalizers, finalizerKey(obj))
 	return fn
 }

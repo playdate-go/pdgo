@@ -23,6 +23,7 @@ const (
 	HasFinalFlag   uint8 = 1 << 2
 	InFreeListFlag uint8 = 1 << 3
 	PinFlag        uint8 = 1 << 4
+	FreshFlag      uint8 = 1 << 5
 )
 
 // SizeClassOf returns the bucket index for a user-data size.
@@ -91,6 +92,22 @@ func SetInFreeList(c uint8, v bool) uint8 {
 
 // InFreeList reports whether the in-free-list flag bit is set.
 func InFreeList(c uint8) bool { return c&InFreeListFlag != 0 }
+
+// Fresh blocks are ones no scan can have seen a root reference for yet: the
+// in-flight allocation whose own GC trigger fired, and blocks allocated
+// while a GC is running. alloc() clears the flag before returning in the
+// idle state — blocks handed to the game are plain white, so unreachable
+// ones are swept the very cycle they die (sparing every allocation one cycle
+// ballooned the heap by a full inter-cycle garbage batch).
+func SetFresh(c uint8, v bool) uint8 {
+	if v {
+		return c | FreshFlag
+	}
+	return c &^ FreshFlag
+}
+
+// IsFresh reports whether the fresh (allocated-this-cycle) flag bit is set.
+func IsFresh(c uint8) bool { return c&FreshFlag != 0 }
 
 // Pinned blocks could not be covered by the object bitmap; they are never
 // marked, swept, or finalized — leaked, not freed.

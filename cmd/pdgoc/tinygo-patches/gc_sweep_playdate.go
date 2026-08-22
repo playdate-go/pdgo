@@ -24,7 +24,7 @@ func sweep() {
 			continue
 		}
 
-		if colorOf(current.color) == colorWhite {
+		if colorOf(current.color) == colorWhite && !isFresh(current.color) {
 			objPtr := unsafe.Pointer(current.userStart)
 			// Capture size now: the class-7 branch below releases the block
 			// to the SDK, whose allocator may scribble metadata over the
@@ -38,9 +38,6 @@ func sweep() {
 				}
 			}
 
-			// Clear from object bitmap before free-list push
-			objectMapClear(current.userStart, current.size)
-
 			// Unlink from alloc list (O(1) now via doubly-linked list)
 			allocListUnlink(current)
 
@@ -49,16 +46,28 @@ func sweep() {
 				// capacities; free-list reuse for a larger same-class
 				// request would hand out an undersized block and overrun
 				// its neighbor. Release straight back to the SDK instead.
+				// Clear before the release: the memory leaves our control
+				// and the SDK may scribble over the header.
+				objectMapClear(current.userStart, size)
 				_cgo_pd_realloc(unsafe.Pointer(current), 0)
 			} else {
-				// Push to free-list (recycle — no SDK call)
+				// Push to free-list (recycle — no SDK call). No bitmap
+				// clear: reuse re-marks the FULL bucket span (alloc rounds
+				// the size up to the bucket before marking), and markObject
+				// ignores inFreeList blocks, so stale entries are inert.
+				// The sweep-time clear was the dominant per-block cost
+				// (device: 10-15µs per 264-byte block).
 				current.color = colorWhite // reset all flags
 				freeListPush(current)
 			}
 			gcFrees += uint64(gcHeaderSize + size)
 			gcDebugSwept++
 		} else {
-			current.color = setColor(current.color, colorWhite) // reset for next cycle
+			// Kept (marked, or fresh from this cycle's allocations): reset
+			// the color for the next cycle and drop the fresh protection —
+			// the block has survived the allocation cycle and must now
+			// stand on its own reachability.
+			current.color = setFresh(setColor(current.color, colorWhite), false)
 		}
 
 		current = next

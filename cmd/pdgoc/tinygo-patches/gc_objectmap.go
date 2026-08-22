@@ -90,14 +90,31 @@ func objectMapMark(start, size uintptr) {
 }
 
 // objectMapClear zeroes all 4-byte slots covering [start, start+size).
+// Bulk-zeroes in aligned 4-byte words: the bitmap lives in the QSPI-mapped
+// SDK heap where per-byte stores dominated sweep time (device: ~15µs per
+// 264-byte block, 16ms pauses sweeping 1024 blocks).
 func objectMapClear(start, size uintptr) {
 	if !objectMapCovers(start, size) {
 		return
 	}
 	startIdx := (start - objectMapBase) >> 2
 	numSlots := (size + 3) >> 2
-	for i := uintptr(0); i < numSlots; i++ {
-		objectMap[startIdx+i] = 0
+	p := uintptr(unsafe.Pointer(&objectMap[startIdx]))
+	end := p + numSlots
+	// Head bytes up to word alignment.
+	for p&3 != 0 && p < end {
+		*(*byte)(unsafe.Pointer(p)) = 0
+		p++
+	}
+	// Bulk words.
+	for p+4 <= end {
+		*(*uint32)(unsafe.Pointer(p)) = 0
+		p += 4
+	}
+	// Tail bytes.
+	for p < end {
+		*(*byte)(unsafe.Pointer(p)) = 0
+		p++
 	}
 }
 

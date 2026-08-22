@@ -91,12 +91,42 @@ func TestColorFlagOps(t *testing.T) {
 	if !InFreeList(c) {
 		t.Errorf("SetInFreeList true failed")
 	}
+	c = SetInFreeList(c, false)
+	if InFreeList(c) {
+		t.Errorf("SetInFreeList false failed")
+	}
+	c = SetPinned(c, true)
+	if !IsPinned(c) {
+		t.Errorf("SetPinned true failed")
+	}
+	c = SetPinned(c, false)
+	if IsPinned(c) {
+		t.Errorf("SetPinned false failed")
+	}
+	c = SetFresh(c, true)
+	if !IsFresh(c) {
+		t.Errorf("SetFresh true failed")
+	}
+	c = SetFresh(c, false)
+	if IsFresh(c) {
+		t.Errorf("SetFresh false failed")
+	}
 	// Color must survive flag changes
 	c = SetColor(ColorWhite, ColorBlack)
 	c = SetHasFinal(c, true)
 	c = SetInFreeList(c, true)
+	c = SetFresh(c, true)
 	if ColorOf(c) != ColorBlack {
 		t.Errorf("color lost when setting flags")
+	}
+	// Flags must be independent of each other
+	c = SetColor(ColorWhite, ColorGray)
+	c = SetFresh(c, true)
+	if HasFinal(c) || InFreeList(c) || IsPinned(c) {
+		t.Errorf("SetFresh leaked into other flags")
+	}
+	if !IsFresh(c) || ColorOf(c) != ColorGray {
+		t.Errorf("SetFresh did not preserve color+fresh")
 	}
 }
 

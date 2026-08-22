@@ -223,8 +223,21 @@ void pd_sys_setMenuImage(void* bitmap, int xOffset) {
 // Update callback support
 extern int pdgo_update_trampoline(void);
 
+// Raise the GC's stack-scan ceiling to the current SP. The conservative GC
+// scans [sp, pdStackTop) at each cycle; the SDK dispatches the update
+// callback (and system events) at a SHALLOWER stack depth than the
+// kEventInit dispatch where pdStackTop was first captured, so without this
+// the range check fails and stack locals are never scanned as roots.
+#ifdef TARGET_PLAYDATE
+extern void runtime_note_stack_top(void);
+static void pd_note_stack_top(void) { runtime_note_stack_top(); }
+#else
+static void pd_note_stack_top(void) {}
+#endif
+
 static int update_callback_wrapper(void* userdata) {
     (void)userdata;
+    pd_note_stack_top();
     return pdgo_update_trampoline();
 }
 
@@ -1788,6 +1801,7 @@ extern void go_init(void* playdate);
 extern void pdgo_event_trampoline(int event, uint32_t arg);
 
 int eventHandler(PlaydateAPI* playdate, PDSystemEvent event, uint32_t arg) {
+    pd_note_stack_top(); // events dispatch at their own stack depth
     if (event == kEventInit) {
         pd = playdate;
         runtime_init();

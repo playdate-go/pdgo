@@ -5,6 +5,11 @@ package runtime
 // pdStackTop and pdStackTopCaptured are declared in runtime_playdate.go
 // and captured at runtime_init (the earliest Go entry point).
 
+// TEMPORARY device diagnostic for the corruption hunt: the sp scanstack was
+// last called with, recorded even when the pdStackTop range check fails so a
+// broken capture is observable in the GC log line.
+var gcLastScanSP uintptr
+
 func gcMarkReachable() {
 	if !pdStackTopCaptured {
 		return // nothing we can do
@@ -36,6 +41,7 @@ func scanCurrentStack()
 //
 //go:export tinygo_scanstack
 func scanstack(sp uintptr) {
+	gcLastScanSP = sp // TEMPORARY diagnostic: record even when the check fails
 	if pdStackTop > sp {
 		markRoots(sp, pdStackTop)
 	}

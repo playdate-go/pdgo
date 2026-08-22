@@ -143,7 +143,9 @@ func (s *System) GetBatteryVoltage() float32 {
 	return float32(C.pd_sys_getBatteryVoltage())
 }
 
-// SetUpdateCallback sets the update callback function
+// SetUpdateCallback sets the update callback function. The callback runs
+// every frame for the lifetime of the game and cannot be stopped; see
+// SetUpdateCallback for the return-value semantics.
 func (s *System) SetUpdateCallback(callback func() int) {
 	SetUpdateCallback(callback)
 }

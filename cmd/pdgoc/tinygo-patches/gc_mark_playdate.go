@@ -39,6 +39,12 @@ func markObject(ptr uintptr) {
 	if h == nil || isPinned(h.color) {
 		return
 	}
+	// Free-list blocks keep stale bitmap entries until reuse (sweep skips
+	// the clear — it was the dominant per-block cost); marking through one
+	// would falsely retain whatever dead data it still contains.
+	if inFreeList(h.color) {
+		return
+	}
 	if colorOf(h.color) != colorWhite {
 		return
 	}

@@ -62,6 +62,12 @@ var (
 	gcMinAddr     uintptr // lowest userStart ever returned by the SDK
 	gcMaxAddr     uintptr // highest userStart+size ever returned
 	gcPinnedWarn  bool    // one-shot console warning
+
+	// TEMPORARY phase timing (ms) for the pause hunt: mk=mark, wq=work
+	// queue, sw=sweep. 1ms granularity.
+	gcDbgMark  uint32
+	gcDbgWork  uint32
+	gcDbgSweep uint32
 )
 
 // GC tuning parameters - adjusted for smoother operation
@@ -202,7 +208,20 @@ func alloc(size uintptr, layout unsafe.Pointer) unsafe.Pointer {
 			if !gcEnabled && gcTotalAlloc > gcMinTriggerSize {
 				gcEnabled = true
 			}
+			// Fresh protects ONLY blocks no scan can have seen a root for:
+			// the in-flight allocation (the caller has not received the
+			// pointer yet — a cycle triggered here would sweep it as white
+			// garbage and hand its memory to a second owner), and blocks
+			// allocated while a GC runs (mark-stack growth, finalizer
+			// allocations — gcStateVal != idle keeps their flag). Cleared
+			// again at return otherwise: sparing EVERY allocation one cycle
+			// made the heap carry a full inter-cycle batch of pure garbage
+			// (device: 64KB live ballooning to 637KB, live 223→2187).
+			h.color = setFresh(h.color, true)
 			maybeTriggerGC()
+			if gcStateVal == gcStateIdle {
+				h.color = setFresh(h.color, false)
+			}
 			return userData
 		}
 	}
@@ -261,7 +280,13 @@ func alloc(size uintptr, layout unsafe.Pointer) unsafe.Pointer {
 	if !gcEnabled && gcTotalAlloc > gcMinTriggerSize {
 		gcEnabled = true
 	}
+	// Same protection as the fast path: fresh flag only for the in-flight
+	// window (see above) — cleared again unless a GC is still running.
+	header.color = setFresh(header.color, true)
 	maybeTriggerGC()
+	if gcStateVal == gcStateIdle {
+		header.color = setFresh(header.color, false)
+	}
 	return userData
 }
 
@@ -302,14 +327,17 @@ func free(ptr unsafe.Pointer) {
 	// metadata over the freed header.
 	size := header.size
 	allocListUnlink(header)
-	objectMapClear(header.userStart, size) // no-op if uncovered
 	if header.sizeClass == numSizeClasses-1 || isPinned(header.color) {
 		// Class 7 blocks are exact-size with heterogeneous capacities, and
 		// pinned blocks are uncoverable: neither may be recycled through
 		// the free list. The caller declared this object dead, so returning
-		// it straight to the SDK is safe.
+		// it straight to the SDK is safe. Clear the bitmap on the way out —
+		// the memory leaves our control.
+		objectMapClear(header.userStart, size) // no-op if uncovered
 		_cgo_pd_realloc(unsafe.Pointer(header), 0)
 	} else {
+		// No bitmap clear on the recycle path: reuse re-marks the full
+		// bucket span and markObject ignores inFreeList blocks (see sweep).
 		freeListPush(header)
 	}
 	gcFrees += uint64(gcHeaderSize + size)
@@ -336,19 +364,37 @@ func GC() {
 
 	start := ticks() // ms granularity; pauses < 1ms report as 0
 	gcMarkReachable()
+	gcDbgMark := uint32(ticks() - start) // TEMPORARY phase timing (ms)
 	processWorkQueue()
+	gcDbgWork := uint32(ticks()-start) - gcDbgMark // TEMPORARY
 	sweep()
+	// Measure ONLY collector work: the diagnostics print below and
+	// gcVerifyHeap do console I/O / full-list walks that cost milliseconds
+	// and must not count as pause time.
+	gcLastPauseNs = int64(ticks() - start)
+	gcDbgSweep = uint32(gcLastPauseNs) - gcDbgMark - gcDbgWork // TEMPORARY (all ns)
 
 	// TEMPORARY device diagnostics for the corruption hunt. One console
 	// line per cycle: if marked << live, root scanning is broken; pin>0
 	// means the SDK refused to grow the bitmap (those blocks leak);
-	// lo/hi show the observed SDK heap address range.
+	// lo/hi show the observed SDK heap address range; sp is the stack
+	// pointer scanstack saw, top the (possibly raised) pdStackTop, top0
+	// the original runtime_init capture — sp >= top(0) means that cycle
+	// scanned no stack at all. fmap/fh/fcol/flen dump the finalizers map
+	// header (pointer, headerOf result, color, len) and fa/fhit/fmiss the
+	// registration and sweep-time lookup counters.
 	print("GC ")
 	print(int(gcNumGC))
 	print(": marked=")
 	print(int(gcDebugMarked))
 	print(" swept=")
 	print(int(gcDebugSwept))
+	print(" mk=")
+	print(int(gcDbgMark))
+	print(" wq=")
+	print(int(gcDbgWork))
+	print(" sw=")
+	print(int(gcDbgSweep))
 	print(" live=")
 	print(int(gcAllocCount))
 	print(" heap=")
@@ -359,10 +405,29 @@ func GC() {
 	print(int(uint32(gcMinAddr)))
 	print(" hi=")
 	print(int(uint32(gcMaxAddr)))
+	print(" sp=")
+	print(int(uint32(gcLastScanSP)))
+	print(" top=")
+	print(int(uint32(pdStackTop)))
+	print(" top0=")
+	print(int(uint32(pdStackTopInit)))
+	fmap := uintptr(*(*unsafe.Pointer)(unsafe.Pointer(&finalizers)))
+	print(" fmap=")
+	print(int(uint32(fmap)))
+	if h := headerOf(fmap); h != nil {
+		print(" fcol=")
+		print(int(h.color))
+	}
+	print(" flen=")
+	print(len(finalizers))
+	print(" fa=")
+	print(int(gcFinalAdds))
+	print(" fhit=")
+	print(int(gcFinalHits))
+	print(" fmiss=")
+	print(int(gcFinalMiss))
 	println()
 	gcVerifyHeap()
-
-	gcLastPauseNs = int64(ticks() - start)
 
 	gcLastGCSize = gcTotalAlloc - gcFrees
 }
