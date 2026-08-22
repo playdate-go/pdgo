@@ -1,4 +1,4 @@
-// gc_bench - per-frame GC pause benchmark
+// gc_pause_benchmark - per-frame GC pause benchmark
 // Output: CSV to console: frame,NumGC,HeapAlloc,LastPauseNs,LiveObjects
 
 package main
@@ -19,6 +19,7 @@ type particle struct {
 
 var particles []particle
 var frame int
+var done bool
 
 func initGame() {
 	particles = make([]particle, 0, numParticles)
@@ -64,9 +65,12 @@ func update() int {
 	logCSVRow(frame, stats.NumGC, stats.HeapAlloc, stats.LastPauseNs, stats.LiveObjects)
 
 	frame++
-	if frame >= 60 {
+	if frame >= 60 && !done {
+		done = true
 		pd.System.LogToConsole("=== benchmark complete ===")
-		return 0 // stop update loop
+		// The update callback is called every frame for the lifetime of
+		// the game — returning 0 only skips the display refresh, it does
+		// not stop the loop. So: log once, then idle quietly.
 	}
 	return 1
 }

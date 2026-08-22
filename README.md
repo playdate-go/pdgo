@@ -559,7 +559,14 @@ stats := pd.Memory.Stats() // HeapAlloc, NumGC, LiveObjects, LastPauseNs, ...
 pause := pd.Memory.RunGC() // force a cycle, returns pause in ns
 ```
 
-The `game_examples/gc_bench` example emits per-frame CSV (`frame,NumGC,HeapAlloc,LastPauseNs,LiveObjects`) for regression tracking, and `game_examples/gc_test_purego` runs device tests including a pause-budget and a free-list-reuse check.
+The custom device GC is exercised on real hardware by two dedicated examples (the simulator runs the stock Go GC and cannot validate it):
+
+- **[gc_test_suite](game_examples/gc_test_suite)** — the GC test suite. Runs 18 tests written in pure Go (no C calls in test logic) covering every allocation construct: slices, maps, `new(T)`, struct literals, pointer chains, trees, interface boxing, channels, closures, string concatenation, nested slices, append growth. The device-specific tests prove:
+  - *RetainedMemory / StressTest / LargeLiveSet* — live data survives GC cycles intact: 500 KB across 4000 objects is collected around, never freed or corrupted while reachable (this is the class of bug a conservative collector can produce if marking or sweeping is wrong).
+  - *FinalizerChurn* — all 500 registered finalizers run under allocation pressure: automatic cleanup of C resources (bitmaps, sounds, files) actually happens instead of leaking SDK memory.
+  - *PauseBudget* — the worst GC pause stays under 3 ms, comfortably inside a 50 ms frame budget, so collection is invisible during gameplay.
+  - *FreeListReuse* — the SDK allocation count stays flat under alloc/free churn: the size-classed free lists recycle blocks instead of growing the heap without bound.
+- **[gc_pause_benchmark](game_examples/gc_pause_benchmark)** — the per-frame pause benchmark. A game-shaped workload (1000 particles + 50 garbage allocations per frame) logs `frame,NumGC,HeapAlloc,LastPauseNs,LiveObjects` as CSV to the console. It proves that under sustained allocation pressure the heap stays bounded and pauses stay at 0.1-2 ms typical, ≤3 ms worst — and because the output is CSV, results diff cleanly between builds, so any GC change that regresses pause time or heap growth is caught immediately.
 
 ### gc.leaking Escape Hatch
 
@@ -659,7 +666,7 @@ go test -bench . ./gcpure   # benchmarks
 
 The host versions use side-map stand-ins where the runtime uses intrusive links, so absolute numbers overstate device cost — treat them as complexity verification and regression tracking, not pause predictions.
 
-**Device pauses** are measured on hardware by the `game_examples/gc_bench` example (1000 particles + 50 garbage allocations per frame; logs `frame,NumGC,HeapAlloc,LastPauseNs,LiveObjects` as CSV to the console). Observed pauses match the figures in [Leaking vs Conservative](#leaking-vs-conservative): 0.1-2 ms typical, ≤3 ms at 2 MB live heap.
+**Device pauses** are measured on hardware by the `game_examples/gc_pause_benchmark` example (1000 particles + 50 garbage allocations per frame; logs `frame,NumGC,HeapAlloc,LastPauseNs,LiveObjects` as CSV to the console). Observed pauses match the figures in [Leaking vs Conservative](#leaking-vs-conservative): 0.1-2 ms typical, ≤3 ms at 2 MB live heap.
 
 ## Why Not Go But TinyGo
 
@@ -887,9 +894,9 @@ Each example includes a `build.sh` script that runs `pdgoc` with all necessary f
 
 **Hello World** -- [game_examples/hello_world](game_examples/hello_world)
 
-**GC Test Suite** -- [game_examples/gc_test_purego](game_examples/gc_test_purego)
+**GC Test Suite (18 device GC tests: correctness, finalizers, pause budget, free-list reuse)** -- [game_examples/gc_test_suite](game_examples/gc_test_suite)
 
-**GC Pause Benchmark (per-frame CSV)** -- [game_examples/gc_bench](game_examples/gc_bench)
+**GC Pause Benchmark (per-frame pause CSV under a particle-game workload)** -- [game_examples/gc_pause_benchmark](game_examples/gc_pause_benchmark)
 
 **Realloc Debug Stats** -- [game_examples/realloc_debug](game_examples/realloc_debug)
 

@@ -1,4 +1,4 @@
-module gc_bench
+module gc_pause_benchmark
 
 go 1.25.6
 

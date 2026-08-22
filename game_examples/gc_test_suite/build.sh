@@ -1,11 +1,11 @@
 #!/bin/bash
-# GC Test Pure Go - Build Script
-# Tests Go's garbage collector with pure Go code (no direct C calls)
+# GC Test Suite - Build Script
+# Tests the device GC with pure Go code (no direct C calls in test code)
 
 pdgoc -sim -device \
-  -name="GCTestPureGo" \
+  -name="GCTestSuite" \
   -author="PdGo" \
-  -desc="GC Test Pure Go - Tests memory management with native Go constructs" \
-  -bundle-id=com.pdgo.gctestpurego \
+  -desc="GC Test Suite - Tests memory management with native Go constructs" \
+  -bundle-id=com.pdgo.gctestsuite \
   -version=1.0 \
   -build-number=1

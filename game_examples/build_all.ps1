@@ -17,7 +17,9 @@ $examples = @(
     'tilemap',
     'sprite_collisions',
     'particles',
-    'exposure'
+    'exposure',
+    'gc_pause_benchmark',
+    'gc_test_suite'
 )
 
 $failed = @()

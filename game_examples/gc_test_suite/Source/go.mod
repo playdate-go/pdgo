@@ -1,4 +1,4 @@
-module gc_test_purego
+module gc_test_suite
 
 go 1.25.6
 

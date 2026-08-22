@@ -21,6 +21,8 @@ EXAMPLES=(
     "sprite_collisions"
     "particles"
     "exposure"
+    "gc_pause_benchmark"
+    "gc_test_suite"
 )
 
 FAILED=()

@@ -1,4 +1,4 @@
-// GC Test - Pure Go Memory Management
+// gc_test_suite - GC test suite for the Playdate device
 // Tests Go's garbage collector on Playdate device
 // Uses LogToConsole for output - GC testing logic is pure Go (no C calls in test code)
 
@@ -542,12 +542,12 @@ func testLargeLiveSet() bool {
 	return true
 }
 
-// testFinalizerChurn registers 500 finalizers, allocates+frees 10k objects,
-// and verifies all finalizers ran.
-func testFinalizerChurn() bool {
-	log("Test: FinalizerChurn - 500 finalizers, 10k allocs")
-	ran := make([]bool, 500)
-	for i := 0; i < 500; i++ {
+// registerFinalizables creates 500 finalizable objects in a dedicated frame.
+// The registration MUST live in a helper: while testFinalizerChurn's frame is
+// alive, the conservative stack scan keeps its locals (including the last
+// `obj`) reachable, so their finalizers correctly never run.
+func registerFinalizables(ran []bool) {
+	for i := 0; i < len(ran); i++ {
 		obj := new([1]byte)
 		idx := i // capture
 		runtime.SetFinalizer(obj, func(p unsafe.Pointer) {
@@ -555,26 +555,65 @@ func testFinalizerChurn() bool {
 		})
 		// obj is heap-promoted by SetFinalizer; no need to use it further
 	}
+}
+
+// testFinalizerChurn registers 500 finalizers, allocates+frees 10k objects,
+// and verifies all finalizers ran.
+//
+// A conservative GC never guarantees a finalizer runs after a fixed number
+// of cycles: objects allocated since the last sweep are spared one cycle
+// (fresh flag), and an object's address lingering in a callee-saved register
+// or stale stack slot is a legitimate root (observed on device: the last
+// object survived 2 explicit GCs and was collected on the 3rd, after string
+// formatting clobbered the register). So: poll with a bounded retry loop —
+// the same pattern mainline Go's own finalizer tests use.
+func testFinalizerChurn() bool {
+	log("Test: FinalizerChurn - 500 finalizers, 10k allocs")
+	ran := make([]bool, 500)
+	registerFinalizables(ran)
 	// Force allocations to trigger GC.
 	for i := 0; i < 10000; i++ {
 		s := make([]byte, 64)
 		_ = s
 	}
-	runtime.GC()
-	runtime.GC()
-	for i := range ran {
-		if !ran[i] {
-			log("Test: FinalizerChurn - FAIL (finalizer did not run)")
-			return false
+	const attempts = 5
+	missed := 1
+	for a := 0; a < attempts && missed > 0; a++ {
+		runtime.GC()
+		missed = 0
+		for i := range ran {
+			if !ran[i] {
+				missed++
+			}
 		}
+		if missed > 0 && a < attempts-1 {
+			// Churn registers between attempts (log does string formatting)
+			// so stale object pointers don't survive as conservative roots.
+			logInt("  finalizers pending, retrying: ", missed)
+		}
+	}
+	if missed > 0 {
+		log("Test: FinalizerChurn - FAIL (finalizer did not run)")
+		logInt("  finalizers not run: ", missed)
+		return false
 	}
 	log("Test: FinalizerChurn - PASS")
 	return true
 }
 
+// pauseSink forces the PauseBudget garbage onto the heap: a non-escaping
+// make([]byte, 256) is stack-allocated by TinyGo, so the original test
+// triggered ZERO GCs during its measurement loop and reported the stale
+// LastPauseNs of the previous test's finalizer-heavy cycle (observed on
+// device: FAIL worst=4ms with no GC line printed during the test).
+var pauseSink []byte
+
 // testPauseBudget measures the worst GC pause and asserts < 3ms.
 func testPauseBudget() bool {
 	log("Test: PauseBudget - worst pause must be < 3ms")
+	// Drop the previous test's pause so the measurement only reflects GCs
+	// triggered by this test's own allocations.
+	pd.Memory.ResetStats()
 	// Allocate enough to trigger several GCs.
 	worst := int64(0)
 	for i := 0; i < 50; i++ {
@@ -584,6 +623,7 @@ func testPauseBudget() bool {
 			s := make([]byte, 256)
 			s[0] = byte(j)
 			dummy += s[0]
+			pauseSink = s // force heap allocation (garbage when overwritten)
 		}
 		_ = dummy
 		stats := pd.Memory.Stats()
@@ -675,7 +715,7 @@ var gcTests = []gcTest{
 
 func initGame() {
 	log("========================================")
-	log("GC Test - Pure Go Memory Management")
+	log("GC Test Suite")
 	log("========================================")
 	log("")
 

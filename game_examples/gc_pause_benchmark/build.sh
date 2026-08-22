@@ -1,10 +1,10 @@
 #!/bin/bash
-# GC Bench - Per-frame GC pause benchmark
+# GC Pause Benchmark - per-frame GC pause measurement
 
 pdgoc -sim -device \
-  -name="GCBench" \
+  -name="GCPauseBenchmark" \
   -author="PdGo" \
   -desc="GC Pause Benchmark" \
-  -bundle-id=com.pdgo.gcbench \
+  -bundle-id=com.pdgo.gcpausebenchmark \
   -version=1.0 \
   -build-number=1

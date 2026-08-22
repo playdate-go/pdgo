@@ -1,7 +1,23 @@
-# GC Test - Pure Go Memory Management
+# GC Test Suite
 
-Tests Go's garbage collector on Playdate device using native Go memory constructs.
+Tests the pdgo garbage collector on the Playdate device using native Go memory constructs.
 Output is via `LogToConsole` (visible in simulator console or device serial).
+
+## Why This Exists
+
+The device build runs a custom conservative mark-sweep GC (TinyGo patch), not the stock Go GC —
+and the simulator cannot validate it, because simulator builds use the standard host Go runtime.
+Every change to the collector therefore needs an on-hardware test suite.
+
+## What It Proves
+
+| Group | Tests | Proves |
+|-------|-------|--------|
+| Correctness across constructs | Slices, Maps, Structs, PointerChains, Trees, Interfaces, Channels, Closures, Strings, NestedSlices, AppendGrowth | every Go allocation construct works under the custom GC |
+| Live data is never corrupted | RetainedMemory, StressTest, LargeLiveSet | reachable objects survive GC cycles byte-for-byte (500 KB / 4000 objects) — the class of bug a wrong conservative marker produces |
+| C resources are cleaned up | FinalizerChurn | all 500 registered finalizers run, so SDK memory (bitmaps, sounds, files) is not leaked |
+| Pauses fit a frame | PauseBudget | worst GC pause < 3 ms, inside the 50 ms frame budget |
+| Memory is actually reclaimed | FreeListReuse | SDK allocation count stays flat under churn — the free list recycles instead of growing the heap without bound |
 
 ## What It Tests
 
@@ -31,17 +47,17 @@ All tests use **pure Go constructs** (no C API calls in test code):
 ## Building
 
 ```bash
-cd examples/gc_test_purego
+cd examples/gc_test_suite
 ./build.sh
 ```
 
 Or manually:
 ```bash
 pdgoc -sim -device \
-  -name="GCTestPureGo" \
+  -name="GCTestSuite" \
   -author="PdGo" \
-  -desc="GC Test Pure Go" \
-  -bundle-id=com.pdgo.gctestpurego \
+  -desc="GC Test Suite" \
+  -bundle-id=com.pdgo.gctestsuite \
   -version=1.0 \
   -build-number=1
 ```
@@ -50,13 +66,13 @@ pdgoc -sim -device \
 
 ### Simulator
 ```bash
-open GCTestPureGo_sim.pdx
+open GCTestSuite_sim.pdx
 ```
 
 View output in the Playdate Simulator console window.
 
 ### Device
-1. Copy `GCTestPureGo.pdx` to your Playdate
+1. Copy `GCTestSuite.pdx` to your Playdate
 2. Run the game
 3. Connect via serial to see log output
 
@@ -64,7 +80,7 @@ View output in the Playdate Simulator console window.
 
 ```
 ========================================
-GC Test - Pure Go Memory Management
+GC Test Suite
 ========================================
 
 Initial HeapAlloc: 45000

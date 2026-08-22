@@ -17,7 +17,7 @@ package gcpure
 // runtime uses intrusive links and unsafe.Pointer map keys, so absolute
 // numbers overstate device cost — treat these as regression tracking and
 // complexity verification (O(1) claims), not device pause predictions.
-// End-to-end pause times are measured on hardware by game_examples/gc_bench.
+// End-to-end pause times are measured on hardware by game_examples/gc_pause_benchmark.
 
 import "testing"
 
